@@ -4,18 +4,26 @@
   xmlns:tools="http://schemas.android.com/tools"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
-  android:padding="@dimen/act_padding"
-  tools:context=".MainActivity">
-
-
+  tools:context=".samples.sample01.Sample01Activity">
+  
   <Button
-    android:id="@+id/btn_sample01"
+    android:id="@+id/btn_download"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:text="Sample 01"
+    android:text="Button"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent" />
+  
+  <ProgressBar
+    android:id="@+id/progressbar"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:visibility="gone"
+    tools:visibility="visible"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintBottom_toBottomOf="parent"
     app:layout_constraintTop_toTopOf="parent"
     />
-
 </androidx.constraintlayout.widget.ConstraintLayout>
