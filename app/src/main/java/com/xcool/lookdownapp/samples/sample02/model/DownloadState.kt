@@ -1,4 +1,4 @@
-package com.xcool.lookdown.model
+package com.xcool.lookdownapp.samples.sample02.model
 
 
 /**
@@ -9,7 +9,6 @@ sealed class DownloadState{
   object Queued : DownloadState()
   object Downloading : DownloadState()
   object Paused : DownloadState()
-  object Incomplete : DownloadState()
   object Downloaded : DownloadState()
   data class Error(val message: String) : DownloadState()
 }

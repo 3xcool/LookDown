@@ -2,14 +2,13 @@ package com.xcool.lookdown
 
 import android.content.Context
 import androidx.lifecycle.*
-import com.andrefilgs.fileman.FilemanDrivers
 import com.xcool.lookdown.LookDownConstants.LD_CONNECTTIMEOUT
 import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_DRIVER
 import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_FOLDER
 import com.xcool.lookdown.LookDownConstants.LD_TEMP_EXT
 import com.xcool.lookdown.LookDownConstants.LD_TIMEOUT
 import com.xcool.lookdown.log.LDLogger
-import com.xcool.lookdown.model.DownloadState
+import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdown.utils.formatFileSize
 import com.xcool.lookdownapp.utils.orDefault
@@ -78,7 +77,7 @@ object LookDownUtil : ViewModel() {
     var output: OutputStream? = null
     var connection: HttpURLConnection? = null
     var file: File? = null
-    val ldDownload = LDDownload(url = urlStr, filename = filename, state = DownloadState.Queued)
+    val ldDownload = LDDownload(url = urlStr, filename = filename, stateLD = LDDownloadState.Queued)
     var isResume = false
     try {
       LDLogger.log("Starting download: $urlStr")
@@ -122,7 +121,7 @@ object LookDownUtil : ViewModel() {
       
       // expect HTTP 200 OK or 206 Partial
       if (connection.responseCode != HttpURLConnection.HTTP_OK && connection.responseCode != HttpURLConnection.HTTP_PARTIAL) {
-        ldDownload.state = DownloadState.Error("Server returned HTTP " + connection.responseCode + " " + connection.responseMessage)
+        ldDownload.stateLD = LDDownloadState.Error("Server returned HTTP " + connection.responseCode + " " + connection.responseMessage)
         return ldDownload
       }
       
@@ -141,7 +140,7 @@ object LookDownUtil : ViewModel() {
       var downloadedBytes = file.length()
       var chunk: Int
       
-      ldDownload.state = DownloadState.Downloading
+      ldDownload.stateLD = LDDownloadState.Downloading
       while (input.read(data).also { chunk = it } != -1 && downloadJobs[urlStr].orDefault()) {
         LDLogger.log("Flag from $url: ${downloadJobs.get(url).orDefault(true)}")
         downloadedBytes += chunk.toLong()
@@ -150,15 +149,15 @@ object LookDownUtil : ViewModel() {
         output!!.write(data, 0, chunk)
       }
       LDLogger.log("Is file fully downloaded ${file.length() == fileTotalLength}\nBytes downloaded: ${file.length()}\nFile Length: $fileTotalLength")
-      if (file.length() == fileTotalLength) ldDownload.state = DownloadState.Downloaded else ldDownload.state = DownloadState.Incomplete
+      if (file.length() == fileTotalLength) ldDownload.stateLD = LDDownloadState.Downloaded else ldDownload.stateLD = LDDownloadState.Incomplete
     } catch (e: Exception) {
-      ldDownload.state = DownloadState.Error("Catch: ${e.stackTrace}")
+      ldDownload.stateLD = LDDownloadState.Error("Catch: ${e.stackTrace}")
       return ldDownload
     } finally {
       try {
         output?.close()
         input?.close()
-        if (ldDownload.state == DownloadState.Downloaded) {
+        if (ldDownload.stateLD == LDDownloadState.Downloaded) {
           LDLogger.log("Removing .tmp extension")
           TempFileman.removeTempExtension(file!!, LD_TEMP_EXT)
         }
@@ -210,7 +209,7 @@ object LookDownUtil : ViewModel() {
     var connection: HttpURLConnection? = null
     var file: File? = null
     var fileTotalLength = 0L
-    val ldDownload = LDDownload(url = urlStr, filename = filename, state = DownloadState.Queued)
+    val ldDownload = LDDownload(url = urlStr, filename = filename, stateLD = LDDownloadState.Queued)
     var isResume = false
     
     flow {
@@ -254,7 +253,7 @@ object LookDownUtil : ViewModel() {
       
       // expect HTTP 200 OK or 206 Partial
       if (connection!!.responseCode != HttpURLConnection.HTTP_OK && connection!!.responseCode != HttpURLConnection.HTTP_PARTIAL) {
-        ldDownload.state = DownloadState.Error("Server returned HTTP " + connection!!.responseCode + " " + connection!!.responseMessage)
+        ldDownload.stateLD = LDDownloadState.Error("Server returned HTTP " + connection!!.responseCode + " " + connection!!.responseMessage)
         emit(ldDownload)
         return@flow
       }
@@ -272,7 +271,7 @@ object LookDownUtil : ViewModel() {
       var chunk: Int
       
       //Writing
-      ldDownload.state = DownloadState.Downloading
+      ldDownload.stateLD = LDDownloadState.Downloading
       while (input!!.read(data).also { chunk = it } != -1) {
         downloadedBytes += chunk.toLong()
         if (fileTotalLength > 0) ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
@@ -280,18 +279,18 @@ object LookDownUtil : ViewModel() {
         emit(ldDownload)
       }
       LDLogger.log("Is file fully downloaded ${file?.length() == fileTotalLength}\nbytes downloaded: ${file?.length()}\nFile Size: $fileTotalLength")
-      if (file!!.length() == fileTotalLength) ldDownload.state = DownloadState.Downloaded
+      if (file!!.length() == fileTotalLength) ldDownload.stateLD = LDDownloadState.Downloaded
     }.catch { e ->
       LDLogger.log("On catch ${e.stackTrace}")
-      ldDownload.state = DownloadState.Error("Catch: ${e.stackTrace}")  //todo 1000 test catch
+      ldDownload.stateLD = LDDownloadState.Error("Catch: ${e.stackTrace}")  //todo 1000 test catch
       emit(ldDownload)
       return@catch
     }.onCompletion {
-      LDLogger.log("On completion ${ldDownload.state.toString()}")
+      LDLogger.log("On completion ${ldDownload.stateLD.toString()}")
       try {
         output?.close()
         input?.close()
-        if (ldDownload.state == DownloadState.Downloaded) TempFileman.removeTempExtension(file!!, LD_TEMP_EXT)
+        if (ldDownload.stateLD == LDDownloadState.Downloaded) TempFileman.removeTempExtension(file!!, LD_TEMP_EXT)
       } catch (ignored: IOException) {
       }
       connection?.disconnect()

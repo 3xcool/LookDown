@@ -15,7 +15,7 @@ data class LDDownload(
   var bytesDownloaded: Long? = null,
   var lastModified: String? = null,
   var progress: Int = 0,
-  var state: DownloadState?=DownloadState.Empty,
+  var stateLD: LDDownloadState?=LDDownloadState.Empty,
   var feedback: String?=null,
 ){
 

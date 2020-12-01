@@ -1,3 +1,8 @@
 <resources>
   <string name="app_name">LookDown</string>
+  
+  <string name="download">Download</string>
+  <string name="download_sample">Download Sample</string>
+  <string name="stop_all">Stop All</string>
+  <string name="download_icon">Download icon</string>
 </resources>

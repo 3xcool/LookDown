@@ -10,6 +10,7 @@
     android:roundIcon="@mipmap/ic_launcher_round"
     android:supportsRtl="true"
     android:theme="@style/Theme.LookDown">
+    <activity android:name=".samples.sample02.Sample02Activity"></activity>
     <activity android:name=".samples.sample01.Sample01Activity" />
     <activity android:name=".MainActivity">
       <intent-filter>

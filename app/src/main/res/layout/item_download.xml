@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  xmlns:tools="http://schemas.android.com/tools"
+  android:layout_width="match_parent"
+  android:layout_height="wrap_content"
+  android:padding="16dp"
+  >
+  
+  <androidx.constraintlayout.widget.Guideline
+    android:id="@+id/guide_v15"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    app:layout_constraintGuide_percent="0.15" />
+  
+  <androidx.constraintlayout.widget.Guideline
+    android:id="@+id/guide_v85"
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    app:layout_constraintGuide_percent="0.85" />
+  
+  <TextView
+    android:id="@+id/item_down_tv_title"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="8dp"
+    android:textSize="18sp"
+    tools:text="Download Title"
+    app:layout_constraintEnd_toStartOf="@id/guide_v85"
+    app:layout_constraintStart_toEndOf="@id/guide_v15"
+    app:layout_constraintTop_toTopOf="parent" />
+  
+  <TextView
+    android:id="@+id/item_down_tv_index"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:textAlignment="center"
+    android:gravity="center"
+    android:textSize="20sp"
+    tools:text="1"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintBottom_toTopOf="@id/item_down_floor"
+    app:layout_constraintEnd_toStartOf="@id/guide_v15"
+    app:layout_constraintTop_toTopOf="parent"
+    />
+  
+  <TextView
+    android:id="@+id/item_down_tv_progress"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="16dp"
+    android:gravity="center"
+    android:visibility="visible"
+    tools:visibility="visible"
+    tools:text="50%"
+    app:layout_constraintStart_toEndOf="@id/guide_v15"
+    app:layout_constraintEnd_toStartOf="@id/guide_v85"
+    app:layout_constraintBottom_toTopOf="@id/item_down_progress"
+    app:layout_constraintTop_toBottomOf="@id/item_down_tv_title"
+    />
+  
+  <ProgressBar
+    android:id="@+id/item_down_progress"
+    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+    android:layout_width="0dp"
+    android:max="100"
+    android:visibility="visible"
+    tools:visibility="visible"
+    tools:progress="50"
+    android:layout_height="wrap_content"
+    app:layout_constraintStart_toEndOf="@id/guide_v15"
+    app:layout_constraintEnd_toStartOf="@id/guide_v85"
+    app:layout_constraintTop_toBottomOf="@id/item_down_tv_progress"
+    />
+  
+  <ImageView
+    android:id="@+id/item_down_iv_action"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    
+    android:scaleType="center"
+    
+    app:layout_constraintStart_toEndOf="@id/guide_v85"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintBottom_toTopOf="@id/item_down_floor"
+    app:layout_constraintTop_toTopOf="parent"
+    app:srcCompat="@drawable/ic_baseline_arrow_downward_24"
+    android:contentDescription="@string/download_icon" />
+  
+  <View
+    android:id="@+id/item_down_floor"
+    android:layout_width="0dp"
+    android:layout_height="1dp"
+    android:background="@color/colorGrey600"
+    android:layout_marginTop="16dp"
+    app:layout_constraintStart_toEndOf="@id/guide_v15"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/item_down_progress"
+    />
+  
+</androidx.constraintlayout.widget.ConstraintLayout>

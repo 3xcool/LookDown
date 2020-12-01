@@ -6,7 +6,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import com.xcool.lookdown.LookDownConstants
-import com.xcool.lookdown.model.DownloadState
+import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdownapp.app.AppLogger
 import com.xcool.lookdownapp.databinding.ActivitySample01Binding
@@ -60,16 +60,16 @@ class Sample01Activity : AppCompatActivity() {
   }
   
   private fun renderScreen(ldDownload: LDDownload){
-    when(ldDownload.state){
-      DownloadState.Downloading -> binding.progressbar.visibility = View.VISIBLE
-      DownloadState.Queued -> binding.progressbar.visibility = View.VISIBLE
-      else -> binding.progressbar.visibility = View.GONE
+    when(ldDownload.stateLD){
+      LDDownloadState.Downloading -> binding.progressbar.visibility = View.VISIBLE
+      LDDownloadState.Queued      -> binding.progressbar.visibility = View.VISIBLE
+      else                        -> binding.progressbar.visibility = View.GONE
     }
-    binding.progressbarDownload.isIndeterminate = ldDownload.state == DownloadState.Queued
+    binding.progressbarDownload.isIndeterminate = ldDownload.stateLD == LDDownloadState.Queued
     binding.progressbarDownload.progress = ldDownload.progress
-    binding.tvProgress.text = "${ldDownload.state!!::class.java.simpleName}: ${ldDownload.progress}%"
+    binding.tvProgress.text = "${ldDownload.stateLD!!::class.java.simpleName}: ${ldDownload.progress}%"
   
-    if(ldDownload.state == DownloadState.Downloaded) finishDownload()
+    if(ldDownload.stateLD == LDDownloadState.Downloaded) finishDownload()
   }
   
   @ExperimentalCoroutinesApi

@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import com.xcool.lookdownapp.databinding.ActivityMainBinding
 import com.xcool.lookdownapp.samples.sample01.Sample01Activity
+import com.xcool.lookdownapp.samples.sample02.Sample02Activity
 
 class MainActivity : AppCompatActivity() {
   
@@ -22,6 +23,10 @@ class MainActivity : AppCompatActivity() {
   private fun setClickListeners() {
     binding.btnSample01.setOnClickListener {
       goTo(Sample01Activity::class.java)
+    }
+  
+    binding.btnSample02.setOnClickListener {
+      goTo(Sample02Activity::class.java)
     }
   }
   

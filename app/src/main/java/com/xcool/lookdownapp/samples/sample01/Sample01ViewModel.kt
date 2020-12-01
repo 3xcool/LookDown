@@ -4,11 +4,12 @@ import android.content.Context
 import androidx.hilt.Assisted
 import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.*
+import com.xcool.coroexecutor.core.Executor
 import com.xcool.lookdown.LookDownConstants
 import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_DRIVER
 import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_FOLDER
 import com.xcool.lookdown.LookDownUtil
-import com.xcool.lookdown.model.DownloadState
+import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdownapp.app.AppLogger
 import com.xcool.lookdownapp.utils.BaseViewModel
@@ -22,8 +23,9 @@ import kotlinx.coroutines.*
  */
 class Sample01ViewModel @ViewModelInject constructor(
   @ApplicationContext val context: Context,
+  private val executor: Executor,
   @Assisted private val state: SavedStateHandle
-  ): BaseViewModel() {
+  ): BaseViewModel(executor) {
   
   private val filename = "takeatour"
   private val extension = ".mp4"
@@ -53,13 +55,13 @@ class Sample01ViewModel @ViewModelInject constructor(
         value.cancel()
         if(checked){
           ldDownloadFlow.value?.let{
-            it.state = DownloadState.Paused
+            it.stateLD = LDDownloadState.Paused
             LookDownUtil.updateLDDownload(it)
           }
         }else{
           LookDownUtil.cancelAllDownloads()  //using this work around to cancel
           ldDownload.value?.let{
-            it.state = DownloadState.Paused
+            it.stateLD = LDDownloadState.Paused
             ldDownload.value = it
           }
         }
@@ -75,7 +77,7 @@ class Sample01ViewModel @ViewModelInject constructor(
         val res = LookDownUtil.deleteFile(context, LookDownConstants.LD_DEFAULT_DRIVER, LookDownConstants.LD_DEFAULT_FOLDER, "$filename$extension")
         withContext(Dispatchers.Main) {
           _feedback.value = if(res.orDefault()) "File deleted" else "File not deleted"
-          ldDownload.value = LDDownload(state=DownloadState.Empty, progress = 0)
+          ldDownload.value = LDDownload(stateLD=LDDownloadState.Empty, progress = 0)
         }
       }
       _loading.value = false
