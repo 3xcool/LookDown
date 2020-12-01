@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.*
 import com.andrefilgs.fileman.FilemanDrivers
 import com.xcool.lookdown.LookDownConstants.LD_CONNECTTIMEOUT
+import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_DRIVER
 import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_FOLDER
 import com.xcool.lookdown.LookDownConstants.LD_TEMP_EXT
 import com.xcool.lookdown.LookDownConstants.LD_TIMEOUT
@@ -25,49 +26,69 @@ import java.util.*
  */
 object LookDownUtil : ViewModel() {
   
-  var forceInterrupt = false
-  
   var chunkSize = LookDownConstants.LD_CHUNK_SIZE
-  var driver = FilemanDrivers.Internal.type
+  
+  fun activateLogs()   { LDLogger.showLogs = true}
+  fun deactivateLogs() { LDLogger.showLogs = false}
   
   fun deleteFile(context: Context, drive: Int, folderStr: String, fileName: String): Boolean {
     return TempFileman.deleteFile(context, drive, folderStr, fileName)
   }
   
-  var counter = 0
-  var flag = true
+  var downloadJobs:MutableMap<String, Boolean> = mutableMapOf()
   
-  var keepRunning = true
-  
-  fun dummy(){
-    counter++
-    LDLogger.log("Counter: $counter")
+  fun cancelDownloadByUrl(url:String){
+    downloadJobs[url] = false
   }
   
-  fun download(context: Context, url: String, filename: String, fileExtension: String, folder: String? = LD_DEFAULT_FOLDER, resumeDownload: Boolean? = true, headers: Map<String, String>? = null): LDDownload {
-    keepRunning = true
+  fun cancelAllDownloads(){
+    for((key, _) in downloadJobs){
+      LDLogger.log("Cancelling $key")
+      downloadJobs[key] = false
+    }
+  }
+  
+  
+  /**
+   * Download any file
+   * Be aware to avoid calling this method from Main thread
+   * You can cancel by calling cancelAllDownloads or cancelDownloadByUrl
+   *
+   * @param context
+   * @param urlStr
+   * @param filename
+   * @param fileExtension (e.g. ".mp4", ".png" ...)
+   * @param driver (e.g. 0, 1 or 2, see FilemanDrivers)
+   * @param folder (e.g. "/lookdown")
+   * @param resumeDownload Restart download (will not download the same byte twice if the server allows it)
+   * @param headers (any needed header for authentication for example)
+   *
+   */
+  fun download(context: Context,
+               urlStr: String,
+               filename: String,
+               fileExtension: String,
+               driver:Int?= LD_DEFAULT_DRIVER,
+               folder: String? = LD_DEFAULT_FOLDER,
+               resumeDownload: Boolean? = true,
+               headers: Map<String, String>? = null
+  ): LDDownload {
+    downloadJobs[urlStr] = true
     var input: InputStream? = null
     var output: OutputStream? = null
     var connection: HttpURLConnection? = null
     var file: File? = null
-    val ldDownload = LDDownload(url = url, filename = filename, state = DownloadState.Queued)
+    val ldDownload = LDDownload(url = urlStr, filename = filename, state = DownloadState.Queued)
     var isResume = false
     try {
-      file = TempFileman.getFile(context, driver, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")!!
+      LDLogger.log("Starting download: $urlStr")
+      file = TempFileman.getFile(context, driver?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")!!
       
-      val url = URL(url)
+      val url = URL(urlStr)
       connection = url.openConnection() as HttpURLConnection
   
       file.let { file ->
-        if (!file.exists()) {
-          LDLogger.log("File doesn't exist")
-          file.createNewFile()
-          output = FileOutputStream(file, false)
-        } else if (!resumeDownload.orDefault()) {
-          LDLogger.log("File exists but download will be refreshed")
-          file.createNewFile()
-          output = FileOutputStream(file, false)
-        } else {
+        if(file.exists() && resumeDownload.orDefault()){
           isResume = true
           LDLogger.log("File exists and download will be resumed from ${formatFileSize(file.length())}")
           //TO RESUME https://stackoverflow.com/questions/3428102/how-to-resume-an-interrupted-download-part-2
@@ -75,6 +96,10 @@ object LookDownUtil : ViewModel() {
           // val lastModified = connection.getHeaderField("Last-Modified")
           // connection.setRequestProperty("If-Range", lastModified);
           output = FileOutputStream(file, true) //Append file
+        }else{
+          LDLogger.log("Starting download from the beginning")
+          file.createNewFile()
+          output = FileOutputStream(file, false)
         }
         ldDownload.file = file
       }
@@ -90,21 +115,17 @@ object LookDownUtil : ViewModel() {
       // connection.setDoOutput(true); //https://stackoverflow.com/questions/8587913/what-exactly-does-urlconnection-setdooutput-affect
       
       headers?.let { map ->
-        for ((key, value) in map) {
-          connection.setRequestProperty(key, value)
-        }
+        for ((key, value) in map) connection.setRequestProperty(key, value)
       }
       
       connection.connect()
       
-      // expect HTTP 200 OK or 206 Partial, so we don't mistakenly save error report
-      // instead of the file
+      // expect HTTP 200 OK or 206 Partial
       if (connection.responseCode != HttpURLConnection.HTTP_OK && connection.responseCode != HttpURLConnection.HTTP_PARTIAL) {
         ldDownload.state = DownloadState.Error("Server returned HTTP " + connection.responseCode + " " + connection.responseMessage)
         return ldDownload
       }
       
-      // this will be useful to display download percentage
       // might be -1: server did not report the length
       var fileTotalLength = connection.contentLength.toLong()
       LDLogger.log("Bytes to download: $fileTotalLength")
@@ -114,23 +135,21 @@ object LookDownUtil : ViewModel() {
       
       ldDownload.lastModified = connection.getHeaderField("Last-Modified")
       
-      // download the file
-      input = connection.inputStream
+      input = connection.inputStream // download the file
       
-      val data = ByteArray(chunkSize) //1024 = 57s / 1024*1024 = 75s / 1024*1024*3 = 108
-      var bytesDownloaded = file.length()
+      val data = ByteArray(chunkSize)
+      var downloadedBytes = file.length()
       var chunk: Int
       
       ldDownload.state = DownloadState.Downloading
-      while (input.read(data).also { chunk = it } != -1 && keepRunning) {
-        bytesDownloaded += chunk.toLong()
-        if (fileTotalLength > 0) {
-          ldDownload.progress = (bytesDownloaded * 100 / fileTotalLength).toInt()
-        }
+      while (input.read(data).also { chunk = it } != -1 && downloadJobs[urlStr].orDefault()) {
+        LDLogger.log("Flag from $url: ${downloadJobs.get(url).orDefault(true)}")
+        downloadedBytes += chunk.toLong()
+        if (fileTotalLength > 0) ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
         LDLogger.log("Writing at file")
         output!!.write(data, 0, chunk)
       }
-      LDLogger.log("Is file downloaded ${file.length() == fileTotalLength}\nFile length: ${file.length()}\nFilLength: $fileTotalLength")
+      LDLogger.log("Is file fully downloaded ${file.length() == fileTotalLength}\nBytes downloaded: ${file.length()}\nFile Length: $fileTotalLength")
       if (file.length() == fileTotalLength) ldDownload.state = DownloadState.Downloaded else ldDownload.state = DownloadState.Incomplete
     } catch (e: Exception) {
       ldDownload.state = DownloadState.Error("Catch: ${e.stackTrace}")
@@ -143,6 +162,7 @@ object LookDownUtil : ViewModel() {
           LDLogger.log("Removing .tmp extension")
           TempFileman.removeTempExtension(file!!, LD_TEMP_EXT)
         }
+        downloadJobs.remove(urlStr)
       } catch (ignored: IOException) {
       }
       connection?.disconnect()
@@ -162,32 +182,46 @@ object LookDownUtil : ViewModel() {
   
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
-  suspend fun downloadFlow(context: Context, url: String, filename: String, fileExtension: String, folder: String? = LD_DEFAULT_FOLDER, resumeDownload: Boolean? = true, headers: Map<String, String>? = null) {
-    LDLogger.log("Start")
+  /**
+   * Download any file using flow
+   *
+   * Check download progress via ldDownloadLiveData
+   *
+   * @param context
+   * @param urlStr
+   * @param filename
+   * @param fileExtension (e.g. ".mp4", ".png" ...)
+   * * @param driver (e.g. 0, 1 or 2, see FilemanDrivers)
+   * @param folder (e.g. "/lookdown")
+   * @param resumeDownload Restart download (will not download the same byte twice)
+   * @param headers (any needed header for authentication for example)
+   *
+   */
+  suspend fun downloadWithFlow(context: Context,
+                               urlStr: String,
+                               filename: String,
+                               fileExtension: String,
+                               driver: Int? = LD_DEFAULT_DRIVER,
+                               folder: String? = LD_DEFAULT_FOLDER,
+                               resumeDownload: Boolean? = true,
+                               headers: Map<String, String>? = null) {
     var input: InputStream? = null
     var output: OutputStream? = null
     var connection: HttpURLConnection? = null
     var file: File? = null
     var fileTotalLength = 0L
-    val ldDownload = LDDownload(url = url, filename = filename, state = DownloadState.Queued)
+    val ldDownload = LDDownload(url = urlStr, filename = filename, state = DownloadState.Queued)
     var isResume = false
     
     flow {
+      LDLogger.log("Starting download: $urlStr")
       emit(ldDownload)
-      file = TempFileman.getFile(context, driver, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")!!
-      val url = URL(url)
+      file = TempFileman.getFile(context, driver ?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")!!
+      val url = URL(urlStr)
       connection = url.openConnection() as HttpURLConnection
       
       file?.let { file ->
-        if (!file.exists()) {
-          LDLogger.log("File doesn't exist")
-          file.createNewFile()
-          output = FileOutputStream(file, false)
-        } else if (!resumeDownload.orDefault()) {
-          LDLogger.log("File exists but download will be refreshed")
-          file.createNewFile()
-          output = FileOutputStream(file, false)
-        } else {
+        if(file.exists() && resumeDownload.orDefault()){
           isResume = true
           LDLogger.log("File exists and download will be resumed from ${formatFileSize(file.length())}")
           //TO RESUME https://stackoverflow.com/questions/3428102/how-to-resume-an-interrupted-download-part-2
@@ -195,6 +229,10 @@ object LookDownUtil : ViewModel() {
           // val lastModified = connection.getHeaderField("Last-Modified")
           // connection.setRequestProperty("If-Range", lastModified);
           output = FileOutputStream(file, true) //Append file
+        }else{
+          LDLogger.log("Starting download from beginning")
+          file.createNewFile()
+          output = FileOutputStream(file, false)
         }
         ldDownload.file = file
       }
@@ -210,53 +248,38 @@ object LookDownUtil : ViewModel() {
       // connection.setDoOutput(true); //https://stackoverflow.com/questions/8587913/what-exactly-does-urlconnection-setdooutput-affect
       
       headers?.let { map ->
-        for ((key, value) in map) {
-          connection!!.setRequestProperty(key, value)
-        }
+        for ((key, value) in map) connection!!.setRequestProperty(key, value)
       }
       connection!!.connect()
       
-      // expect HTTP 200 OK or 206 Partial, so we don't mistakenly save error report
-      // instead of the file
+      // expect HTTP 200 OK or 206 Partial
       if (connection!!.responseCode != HttpURLConnection.HTTP_OK && connection!!.responseCode != HttpURLConnection.HTTP_PARTIAL) {
         ldDownload.state = DownloadState.Error("Server returned HTTP " + connection!!.responseCode + " " + connection!!.responseMessage)
         emit(ldDownload)
         return@flow
       }
       
-      // this will be useful to display download percentage
-      // might be -1: server did not report the length
-      fileTotalLength = connection!!.contentLength.toLong()
-      if (isResume) fileTotalLength += file!!.length()  //if is resumed, the server will download only the difference, so we need to add to fileLength the bytes already downloaded
+      fileTotalLength = connection!!.contentLength.toLong() // might be -1: server did not report the length
+      if (isResume) fileTotalLength += file!!.length()  //if is resumed the server will download only the difference, so we need to add to fileLength which are the bytes already downloaded
       
       ldDownload.fileSize = fileTotalLength
-      
       ldDownload.lastModified = connection!!.getHeaderField("Last-Modified")
       
-      // download the file
-      input = connection!!.inputStream
+      input = connection!!.inputStream // download the file
       
       val data = ByteArray(chunkSize)
-      var total = file!!.length()
-      var count: Int
-      var flag = true
+      var downloadedBytes = file!!.length()
+      var chunk: Int
       
+      //Writing
       ldDownload.state = DownloadState.Downloading
-      while (input!!.read(data).also { count = it } != -1 && flag) {
-        total += count.toLong()
-        if (fileTotalLength > 0) {
-          ldDownload.progress = (total * 100 / fileTotalLength).toInt()
-        }
-        output!!.write(data, 0, count)
-        
+      while (input!!.read(data).also { chunk = it } != -1) {
+        downloadedBytes += chunk.toLong()
+        if (fileTotalLength > 0) ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
+        output!!.write(data, 0, chunk)
         emit(ldDownload)
-        
-        //todo 1000 testing resume download
-        if (file!!.length() > fileTotalLength / 2 && forceInterrupt) {
-          flag = false
-        }
       }
-      LDLogger.log("Is file downloaded ${file?.length() == fileTotalLength}\nFile length: ${file?.length()}\nFilLength: ${fileTotalLength}")
+      LDLogger.log("Is file fully downloaded ${file?.length() == fileTotalLength}\nbytes downloaded: ${file?.length()}\nFile Size: $fileTotalLength")
       if (file!!.length() == fileTotalLength) ldDownload.state = DownloadState.Downloaded
     }.catch { e ->
       LDLogger.log("On catch ${e.stackTrace}")
@@ -274,7 +297,6 @@ object LookDownUtil : ViewModel() {
       connection?.disconnect()
       emit(ldDownload)
     }.flowOn(Dispatchers.IO).collect {
-      // LDLogger.log("On Collect ${it.state.toString()}")
       updateLDDownload(it)
     }
   }

@@ -1,5 +1,7 @@
 package com.xcool.lookdown
 
+import com.andrefilgs.fileman.FilemanDrivers
+
 
 /**
  * @author André Filgueiras on 30/11/2020
@@ -14,6 +16,8 @@ object LookDownConstants {
   const val LD_TIMEOUT = 5000
   const val LD_CONNECTTIMEOUT = 5000
   const val LD_DEFAULT_FOLDER = "/lookdown"
+  val LD_DEFAULT_DRIVER = FilemanDrivers.Internal.type
   
   const val LD_CHUNK_SIZE = 1024
+  
 }

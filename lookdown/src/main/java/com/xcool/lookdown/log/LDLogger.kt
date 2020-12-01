@@ -6,8 +6,8 @@ import android.util.Log
 /**
  * @author André Filgueiras on 30/11/2020
  */
-internal object LDLogger {
-  var showLogs = true
+object LDLogger {
+  var showLogs = true  //todo 1000
   var ldTag = "LookDown"
   
   fun log(msg:String){

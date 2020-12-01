@@ -6,7 +6,5 @@ package com.xcool.lookdown
  */
 class LookDown {
   
-  init {
-  
-  }
+
 }

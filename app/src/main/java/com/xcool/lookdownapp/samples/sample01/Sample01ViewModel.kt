@@ -5,6 +5,8 @@ import androidx.hilt.Assisted
 import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.*
 import com.xcool.lookdown.LookDownConstants
+import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_DRIVER
+import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_FOLDER
 import com.xcool.lookdown.LookDownUtil
 import com.xcool.lookdown.model.DownloadState
 import com.xcool.lookdown.model.LDDownload
@@ -22,6 +24,11 @@ class Sample01ViewModel @ViewModelInject constructor(
   @ApplicationContext val context: Context,
   @Assisted private val state: SavedStateHandle
   ): BaseViewModel() {
+  
+  private val filename = "takeatour"
+  private val extension = ".mp4"
+  private val driver = LD_DEFAULT_DRIVER
+  private val folder = LD_DEFAULT_FOLDER
   
   private val _loading : MutableLiveData<Boolean> = MutableLiveData()
   val loading : LiveData<Boolean> = _loading
@@ -42,17 +49,15 @@ class Sample01ViewModel @ViewModelInject constructor(
   fun stopAllDownloads(checked: Boolean) {
     baseCoroutineScope.launch {
       for((key, value) in jobsList){
-        AppLogger.log("Set keep Running false")
-        LookDownUtil.keepRunning = false
-        AppLogger.log("Cancelling job with key $key")
+        AppLogger.log("Cancelling $key")
         value.cancel()
-        AppLogger.log("After cancel and join with key $key")
         if(checked){
           ldDownloadFlow.value?.let{
             it.state = DownloadState.Paused
             LookDownUtil.updateLDDownload(it)
           }
         }else{
+          LookDownUtil.cancelAllDownloads()  //using this work around to cancel
           ldDownload.value?.let{
             it.state = DownloadState.Paused
             ldDownload.value = it
@@ -67,7 +72,7 @@ class Sample01ViewModel @ViewModelInject constructor(
     baseCoroutineScope.launch {
       _loading.value = true
       withContext(Dispatchers.IO){
-        val res = LookDownUtil.deleteFile(context, LookDownUtil.driver, LookDownConstants.LD_DEFAULT_FOLDER, "takeatour.mp4" )
+        val res = LookDownUtil.deleteFile(context, LookDownConstants.LD_DEFAULT_DRIVER, LookDownConstants.LD_DEFAULT_FOLDER, "$filename$extension")
         withContext(Dispatchers.Main) {
           _feedback.value = if(res.orDefault()) "File deleted" else "File not deleted"
           ldDownload.value = LDDownload(state=DownloadState.Empty, progress = 0)
@@ -77,34 +82,27 @@ class Sample01ViewModel @ViewModelInject constructor(
     }
   }
   
-  fun dummy(){
+  
+  fun download(url:String, withResume:Boolean){
     val job = baseCoroutineScope.launch(Dispatchers.IO) {
-      while(LookDownUtil.counter < 100){
-        LookDownUtil.dummy()
-        delay(1000L)
+      withContext(Dispatchers.Main){ _loading.value = true}
+      val res = LookDownUtil.download(context, url, filename, extension, driver,  folder, withResume)
+      withContext(Dispatchers.Main) {
+        ldDownload.value = res
+        _loading.value = false
       }
     }
-    jobsList["dummy"] = job
-  }
-  
-  fun download(url:String){
-    val job = baseCoroutineScope.launch(Dispatchers.IO) {
-      // withContext(Dispatchers.Main){ _loading.value = true}
-      LookDownUtil.download(context, url, "takeatour", ".mp4", folder = null, true)
-      // withContext(Dispatchers.Main) { ldDownload.value = res}
-      // withContext(Dispatchers.Main){ _loading.value = false}
-    }
-    jobsList["takeatour"] = job
+    jobsList[filename] = job
   }
   
   
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
-  fun downloadFlow(url:String){
+  fun downloadWithFlow(url:String, withResume:Boolean){
     val job = baseCoroutineScope.launch(Dispatchers.IO) {
-      LookDownUtil.downloadFlow(context, url, "takeatour", ".mp4", folder = null, true)
+      LookDownUtil.downloadWithFlow(context, url, filename, extension, driver, folder, withResume)
     }
-    jobsList["takeatour"] = job
+    jobsList[filename] = job
   }
   
 }
