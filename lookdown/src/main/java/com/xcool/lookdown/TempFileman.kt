@@ -19,6 +19,11 @@ object TempFileman {
     } else null
   }
   
+  fun deleteFile(context: Context, drive: Int, folderStr: String, fileName: String):Boolean{
+    val file = getFile(context, drive, folderStr,fileName) ?: return false
+    return file.delete()
+  }
+  
   //https://stackoverflow.com/questions/2896733/how-to-rename-a-file-on-sdcard-with-android-application
   fun renameFile(currentFile: File, newFilename:String) {
     val currentLocation = currentFile.absolutePath.substringBeforeLast("/".single())

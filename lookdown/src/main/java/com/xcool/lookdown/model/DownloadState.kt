@@ -9,6 +9,7 @@ sealed class DownloadState{
   object Queued : DownloadState()
   object Downloading : DownloadState()
   object Paused : DownloadState()
+  object Incomplete : DownloadState()
   object Downloaded : DownloadState()
   data class Error(val message: String) : DownloadState()
 }

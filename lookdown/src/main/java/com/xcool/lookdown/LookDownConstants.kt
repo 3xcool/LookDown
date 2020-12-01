@@ -14,4 +14,6 @@ object LookDownConstants {
   const val LD_TIMEOUT = 5000
   const val LD_CONNECTTIMEOUT = 5000
   const val LD_DEFAULT_FOLDER = "/lookdown"
+  
+  const val LD_CHUNK_SIZE = 1024
 }

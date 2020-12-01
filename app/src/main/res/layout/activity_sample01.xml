@@ -4,26 +4,153 @@
   xmlns:tools="http://schemas.android.com/tools"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
+  android:padding="@dimen/act_padding"
   tools:context=".samples.sample01.Sample01Activity">
+  
+  <LinearLayout
+    android:id="@+id/ll_chunksize"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:layout_marginTop="20dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toTopOf="parent"
+    android:orientation="horizontal">
+    
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginRight="10dp"
+      android:text="Chunk Size"
+      android:textAllCaps="true"
+      android:textColor="#000000"
+      android:textSize="16sp"
+      />
+    
+    <Button
+      android:id="@+id/btn_decrease_chunck"
+      android:layout_width="48dp"
+      android:layout_height="48dp"
+      android:text="-"
+      />
+    
+    <TextView
+      android:id="@+id/tv_chunck_size"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:layout_marginLeft="8dp"
+      android:layout_marginRight="8dp"
+      android:text="1024"
+      android:textAllCaps="true"
+      android:textColor="#000000"
+      android:textSize="16sp"
+      />
+    
+    <Button
+      android:id="@+id/btn_increase_chunck"
+      android:layout_width="48dp"
+      android:layout_height="48dp"
+      android:text="+"
+      />
+  
+  </LinearLayout>
+  
+  <Button
+    android:id="@+id/btn_delete"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/act_padding"
+    android:text="Delete"
+    app:layout_constraintEnd_toStartOf="@id/btn_cancel"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/ll_chunksize" />
+  
+  <Button
+    android:id="@+id/btn_cancel"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/act_padding"
+    android:text="Cancel"
+    app:layout_constraintEnd_toStartOf="@id/btn_resume"
+    app:layout_constraintStart_toEndOf="@id/btn_delete"
+    app:layout_constraintTop_toBottomOf="@id/ll_chunksize" />
+  
+  
+  <Button
+    android:id="@+id/btn_resume"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="8dp"
+    android:text="Resume"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toEndOf="@+id/btn_cancel"
+    app:layout_constraintTop_toTopOf="@+id/btn_cancel" />
+  
   
   <Button
     android:id="@+id/btn_download"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:text="Button"
+    android:layout_marginTop="@dimen/act_padding"
+    android:text="Download"
+    app:layout_constraintEnd_toStartOf="@id/switch_show_progress"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/btn_cancel" />
+  
+  
+  
+  
+  <ProgressBar
+    android:id="@+id/progressbar_download"
+    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:max="100"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent" />
+    app:layout_constraintTop_toBottomOf="@id/tv_progress"
+    tools:progress="50" />
   
   <ProgressBar
     android:id="@+id/progressbar"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:visibility="gone"
-    tools:visibility="visible"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toTopOf="parent"
-    />
+    tools:visibility="visible" />
+  
+  <TextView
+    android:id="@+id/tv_progress"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/act_padding"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/btn_download"
+    tools:text="Progress: 50%" />
+  
+  <TextView
+    android:id="@+id/tv_output"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent"
+    tools:text="Output" />
+  
+  <com.google.android.material.switchmaterial.SwitchMaterial
+    android:id="@+id/switch_show_progress"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Show Progress"
+    app:layout_constraintBottom_toBottomOf="@id/btn_download"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toEndOf="@id/btn_download"
+    app:layout_constraintTop_toTopOf="@id/btn_download"
+    tools:checked="true" />
 </androidx.constraintlayout.widget.ConstraintLayout>
