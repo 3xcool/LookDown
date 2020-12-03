@@ -11,7 +11,7 @@ import com.xcool.coroexecutor.core.CoroUtil
 import com.xcool.coroexecutor.core.Executor
 import com.xcool.coroexecutor.core.ExecutorSchema
 import com.xcool.lookdown.LDConstants
-import com.xcool.lookdown.LookDownUtil
+import com.xcool.lookdown.LookDownLite
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdownapp.app.AppLogger
@@ -41,7 +41,7 @@ class DownloadViewModel @ViewModelInject constructor(
   
   private val delayTime = 1000L
   
-  //Simulating download only
+  //Simulating download
   private var _workProgress = MutableLiveData<Event<LDDownload>>()
   var workProgress: LiveData<Event<LDDownload>> = _workProgress
   
@@ -49,19 +49,19 @@ class DownloadViewModel @ViewModelInject constructor(
   private var _schema = MutableStateFlow<ExecutorSchema>(ExecutorSchema.Queue)
   var schema: StateFlow<ExecutorSchema> = _schema
   
-  
   private var _list = MutableLiveData<Event<List<LDDownload>>>()
   var list: LiveData<Event<List<LDDownload>>> = _list
   
   //LookDown LiveData
-  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(LookDownUtil.ldDownloadLiveData) { Event(it) }
+  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(LookDownLite.ldDownloadLiveData) { Event(it) }
   
-  private var workingJobList: MutableMap<String, Triple<ExecutorSchema, Job, LDDownload>> = mutableMapOf() //avoid using Conflate for download
+  //Turn around for Conflate
+  private var workingJobList: MutableMap<String, Triple<ExecutorSchema, Job, LDDownload>> = mutableMapOf()
   
   
   fun buildList(){
     baseCoroutineScope.launch(Dispatchers.IO) {
-      val list = LDDownloadUtils.checkFileExists(context, driver, folder, LDDownloadUtils.buildFakeLDDownloadList() as MutableList)
+      val list = LDDownloadUtils.checkFileExists(context, driver, folder, LDDownloadUtils.buildFakeLDDownloadList())
       withContext(Dispatchers.Main){
         _list.value = Event(list)
       }
@@ -83,9 +83,9 @@ class DownloadViewModel @ViewModelInject constructor(
     baseCoroutineScope.launch {
       workingJobList[download.id]?.let {
         it.second.cancelAndJoin()
-        download.state = LDDownloadState.Paused
+        download.setStateAfterStopDownload()
         download.params?.set(KEY_POSITION, position.toString())
-        LookDownUtil.updateLDDownload(download)
+        LookDownLite.updateLDDownload(download)
       }
     }
   }
@@ -93,8 +93,8 @@ class DownloadViewModel @ViewModelInject constructor(
   fun stopAllDownload() {
     launch(ExecutorSchema.Concurrent) {
       workingJobList.forEach { map ->
-        map.value.third.state = LDDownloadState.Paused
-        LookDownUtil.updateLDDownload(map.value.third)
+        map.value.third.setStateAfterStopDownload()
+        LookDownLite.updateLDDownload(map.value.third)
         map.value.second.cancel()
       }
     }
@@ -102,14 +102,14 @@ class DownloadViewModel @ViewModelInject constructor(
   
   fun deleteDownload(download: LDDownload, position: Int) {
     launch(ExecutorSchema.Concurrent) {
-      val res = LookDownUtil.deleteFile(context, driver, folder, download.filename!!, download.fileExtension!!)
+      val res = LookDownLite.deleteFile(context, driver, folder, download.filename!!, download.fileExtension!!)
       if(!res){
         download.state = LDDownloadState.Error("File not deleted")
       }else{
         download.updateProgress(0)
         download.params?.set(KEY_POSITION, position.toString())
       }
-      LookDownUtil.updateLDDownload(download)
+      LookDownLite.updateLDDownload(download)
     }
   }
   
@@ -121,7 +121,7 @@ class DownloadViewModel @ViewModelInject constructor(
     baseCoroutineScope.launch {
       download.state = LDDownloadState.Queued
       download.params = mutableMapOf(Pair(KEY_POSITION, position.toString()))
-      LookDownUtil.updateLDDownload(download)
+      LookDownLite.updateLDDownload(download)
   
       val job = launch(schema.value) {
         withContext(Dispatchers.IO) {
@@ -150,7 +150,7 @@ class DownloadViewModel @ViewModelInject constructor(
           if(map.value.third.state == LDDownloadState.Downloading){
             map.value.second.cancel()
             map.value.third.state = LDDownloadState.Paused
-            LookDownUtil.updateLDDownload(map.value.third)
+            LookDownLite.updateLDDownload(map.value.third)
           }
         }
     }
@@ -161,12 +161,14 @@ class DownloadViewModel @ViewModelInject constructor(
   private suspend fun downloadFile(download: LDDownload){
     if(download.validateInfoForDownloading()){
       download.state = LDDownloadState.Downloading
-      LookDownUtil.updateLDDownload(download)
-      LookDownUtil.downloadWithFlow(this.context, download.url!!, download.filename!!, download.fileExtension!!, download.id,
-                                    driver = null, folder =null, resumeDownload = true, params = download.params, title = download.title)
+      LookDownLite.updateLDDownload(download)
+      LookDownLite.downloadWithFlow(this.context, download, driver, folder, true, null) //passing ldDownload or
+      
+      // LookDownLite.downloadWithFlow(this.context, download.url!!, download.filename!!, download.fileExtension!!, download.id,
+      //                               driver = driver, folder = folder, resumeDownload = true, params = download.params, title = download.title)
     }else{
       download.state = LDDownloadState.Error("Missing download info")
-      LookDownUtil.updateLDDownload(download)
+      LookDownLite.updateLDDownload(download)
     }
   }
   

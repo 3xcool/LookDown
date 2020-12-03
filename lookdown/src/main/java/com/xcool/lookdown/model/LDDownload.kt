@@ -2,7 +2,6 @@ package com.xcool.lookdown.model
 
 import com.xcool.lookdown.R
 import java.io.File
-import java.io.Serializable
 import java.util.*
 
 /**
@@ -45,26 +44,42 @@ data class LDDownload(
     }
   }
   
-  fun getCurrentDownloadState(): LDDownloadState {
-    if(this.state == LDDownloadState.Paused) return LDDownloadState.Paused
-    if(this.state == LDDownloadState.Downloading && this.progress < 100) return LDDownloadState.Downloading
-    return when(this.progress){
+  fun getCurrentDownloadState(progressChanged:Boolean = false): LDDownloadState {
+    if(!progressChanged){
+      if(this.state == LDDownloadState.Paused) return LDDownloadState.Paused
+      if(this.state == LDDownloadState.Queued) return LDDownloadState.Queued
+      if(this.state == LDDownloadState.Incomplete) return LDDownloadState.Incomplete
+      if(this.state == LDDownloadState.Downloading && this.progress < 100) return LDDownloadState.Downloading
+      if(this.state is LDDownloadState.Error ) return this.state as LDDownloadState.Error
+    }
+    return getStateByProgress(this.progress)
+  }
+  
+  
+  fun updateProgress(progress:Int){
+    this.progress = progress
+    this.state = getCurrentDownloadState(true)
+  }
+  
+  fun setStateAfterStopDownload(){
+    val state = getStateByProgress(this.progress)
+    this.state = when(state){
+      LDDownloadState.Empty ->  LDDownloadState.Empty
+      LDDownloadState.Downloading -> LDDownloadState.Incomplete
+      LDDownloadState.Downloaded ->  LDDownloadState.Downloaded
+      else -> LDDownloadState.Empty
+    }
+    
+  }
+  
+  private fun getStateByProgress(progress: Int):LDDownloadState{
+    return when(progress){
       0 -> LDDownloadState.Empty
       in 1..99 -> LDDownloadState.Downloading
       100 -> LDDownloadState.Downloaded
       else -> LDDownloadState.Empty
     }
   }
-  
-  private fun updateDownloadState(){
-    this.state = getCurrentDownloadState()
-  }
-  
-  fun updateProgress(progress:Int){
-    this.progress = progress
-    updateDownloadState()
-  }
-  
 
 
 }

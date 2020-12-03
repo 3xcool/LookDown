@@ -2,10 +2,9 @@ package com.xcool.lookdownapp.samples.sample02.model
 
 import android.content.Context
 import com.xcool.lookdown.LDConstants
-import com.xcool.lookdown.LookDownUtil
+import com.xcool.lookdown.LookDownLite
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdown.model.LDDownloadState
-import com.xcool.lookdownapp.samples.sample02.DownloadViewModel
 import java.io.File
 import java.lang.Exception
 
@@ -19,7 +18,7 @@ object LDDownloadUtils {
   private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"
   
   fun getFileIfExists(context:Context, driver:Int?, folder:String?, filename:String, fileExtension:String): File? {
-    return LookDownUtil.getFile(context, driver ?: LDConstants.LD_DEFAULT_DRIVER, folder?: LDConstants.LD_DEFAULT_FOLDER, filename, fileExtension)
+    return LookDownLite.getFile(context, driver ?: LDConstants.LD_DEFAULT_DRIVER, folder?: LDConstants.LD_DEFAULT_FOLDER, filename, fileExtension)
   }
   
   fun checkFileExists(context:Context, driver: Int, folder: String?, list:MutableList<LDDownload>):MutableList<LDDownload>{
@@ -43,7 +42,7 @@ object LDDownloadUtils {
     return list
   }
   
-  fun buildFakeLDDownloadList(): List<LDDownload> {
+  fun buildFakeLDDownloadList(): MutableList<LDDownload> {
     val mutableList = mutableListOf<LDDownload>()
     for (i in 1..15) {
       mutableList.add(LDDownload(

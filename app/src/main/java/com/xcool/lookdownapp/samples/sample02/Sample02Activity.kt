@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.xcool.coroexecutor.core.ExecutorSchema
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdown.model.LDDownloadState
+import com.xcool.lookdownapp.app.AppLogger
 import com.xcool.lookdownapp.databinding.ActivitySample02Binding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,7 +34,6 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   private val viewModel : DownloadViewModel by viewModels()
   
   
-  
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,7 +45,6 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
     setSpinner()
     setupRecyclerView()
     setClickListeners()
-    
     
     downAdapter.setOnItemClickListener { item, position ->
       toaster("${item.title} selected")
@@ -125,12 +124,18 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
   override fun onDownloadIconClick(download: LDDownload, position: Int) {
+    AppLogger.log("Click triggered")
     when(download.getCurrentDownloadState()){
       LDDownloadState.Empty -> viewModel.startDownload(download, position)
+      LDDownloadState.Queued  -> viewModel.stopDownload(download, position)
       LDDownloadState.Paused       -> viewModel.startDownload(download, position)
       LDDownloadState.Downloading -> viewModel.stopDownload(download, position)
       LDDownloadState.Downloaded  -> viewModel.deleteDownload(download, position)
-      else                      -> Unit
+      LDDownloadState.Incomplete  -> viewModel.startDownload(download, position)
+      else -> Unit
+      // else                      -> {
+      //   if( download.state is LDDownloadState.Error) viewModel.startDownload(download, position)  //error can be triggered if using Conflate
+      // }
     }
     
     
@@ -138,36 +143,30 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   
   @InternalCoroutinesApi
   @ExperimentalCoroutinesApi
-  private fun subscribeObservers(){
+  private fun subscribeObservers() {
     viewModel.list.observe(this, { event ->
-      event.getContentIfNotHandled().let{ list ->
-        list?.let{ downAdapter.downloadList = it }
-      }
-    })
-    
-    viewModel.workProgress.observe(this, { event ->
-      event.getContentIfNotHandled().let{ download ->
-        download?.let{ downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+      event.getContentIfNotHandled().let { list ->
+        list?.let { downAdapter.downloadList = it }
       }
     })
   
-    viewModel.ldDownloadFlow.observe(this, {event->
-      event.getContentIfNotHandled().let{download ->
-        download?.let{ downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+    viewModel.workProgress.observe(this, { event ->
+      event.getContentIfNotHandled().let { download ->
+        download?.let { downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
       }
     })
-    
-    
+  
+    viewModel.ldDownloadFlow.observe(this, { event ->
+      event.getContentIfNotHandled().let { download ->
+        download?.let { downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+      }
+    })
+  
+  
     // lifecycleScope.launchWhenStarted {
     //   viewModel.schema.collect {schema->
     //       toaster("Schema is ${schema::class.java.simpleName}")
     //     }
-    
-    // viewModel.downloadInfo.collect {download->
-    //   download?.let{
-    //     downAdapter.updateDownload(it)
-    //   }
-    // }
     // }
   }
   

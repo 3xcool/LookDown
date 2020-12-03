@@ -40,7 +40,7 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
   //   get() = differ.currentList
   //   set(value) = differ.submitList(value)
   
-  
+  //todo 100 investigate render problem
   fun updateDownloadProgress(download: LDDownload, mPosition: Int?=null){
     val position = mPosition ?: differ.currentList.indexOf(download)
     if(position != -1){
@@ -53,7 +53,7 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
         item.state = download.state
       }
       notifyItemChanged(position)
-      // notifyDataSetChanged()
+      // notifyDataSetChanged() // don't use this one
     }
   }
   
