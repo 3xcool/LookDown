@@ -1,0 +1,62 @@
+package com.xcool.lookdownapp.samples.sample02.model
+
+import android.content.Context
+import com.xcool.lookdown.LDConstants
+import com.xcool.lookdown.LookDownUtil
+import com.xcool.lookdown.model.LDDownload
+import com.xcool.lookdown.model.LDDownloadState
+import com.xcool.lookdownapp.samples.sample02.DownloadViewModel
+import java.io.File
+import java.lang.Exception
+
+
+/**
+ * @author André Filgueiras on 01/12/2020
+ */
+object LDDownloadUtils {
+  
+  // private val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"  //todo 10000 check when server don't pass file length
+  private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"
+  
+  fun getFileIfExists(context:Context, driver:Int?, folder:String?, filename:String, fileExtension:String): File? {
+    return LookDownUtil.getFile(context, driver ?: LDConstants.LD_DEFAULT_DRIVER, folder?: LDConstants.LD_DEFAULT_FOLDER, filename, fileExtension)
+  }
+  
+  fun checkFileExists(context:Context, driver: Int, folder: String?, list:MutableList<LDDownload>):MutableList<LDDownload>{
+    list.forEach {ldDownload ->
+      try {
+        val file = getFileIfExists(context, driver, folder, ldDownload.filename!!, ldDownload.fileExtension!!)
+        if(file != null && file.exists()){
+          ldDownload.file = file
+          ldDownload.downloadedBytes = file.length()
+          ldDownload.updateProgress(100)
+        }else{
+          val tempFile = getFileIfExists(context, driver, folder, ldDownload.filename!!, ldDownload.fileExtension!!+LDConstants.LD_TEMP_EXT)
+          if(tempFile != null && tempFile.exists()){
+            ldDownload.downloadedBytes = tempFile.length()
+            ldDownload.state = LDDownloadState.Incomplete
+          }
+        }
+      }catch (e:Exception){
+      }
+    }
+    return list
+  }
+  
+  fun buildFakeLDDownloadList(): List<LDDownload> {
+    val mutableList = mutableListOf<LDDownload>()
+    for (i in 1..15) {
+      mutableList.add(LDDownload(
+        id= i.toString(),
+        url = takeatour,
+        title = "Filename $i",
+        filename = "Take a Tour $i",
+        fileExtension = ".mp4",
+        state = LDDownloadState.Empty,
+        progress = 0
+        ))
+    }
+    return mutableList
+  }
+  
+}

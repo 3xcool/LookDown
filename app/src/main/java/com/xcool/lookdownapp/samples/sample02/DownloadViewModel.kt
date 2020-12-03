@@ -6,12 +6,16 @@ import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.Transformations
 import com.xcool.coroexecutor.core.CoroUtil
 import com.xcool.coroexecutor.core.Executor
 import com.xcool.coroexecutor.core.ExecutorSchema
+import com.xcool.lookdown.LDConstants
+import com.xcool.lookdown.LookDownUtil
+import com.xcool.lookdown.model.LDDownload
+import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdownapp.app.AppLogger
-import com.xcool.lookdownapp.samples.sample02.model.Download
-import com.xcool.lookdownapp.samples.sample02.model.DownloadState
+import com.xcool.lookdownapp.samples.sample02.model.LDDownloadUtils
 import com.xcool.lookdownapp.utils.BaseViewModel
 import com.xcool.lookdownapp.utils.Event
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -19,26 +23,52 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+//Transformations: https://proandroiddev.com/livedata-transformations-4f120ac046fc
+
 @ExperimentalCoroutinesApi
 class DownloadViewModel @ViewModelInject constructor(
-  @ApplicationContext context: Context,
-  private val executor: Executor,
+  @ApplicationContext val context: Context,
+  executor: Executor,
   @Assisted private val state: SavedStateHandle
   ): BaseViewModel(executor) {
   
+  companion object{
+    const val KEY_POSITION ="position"
+    val driver = LDConstants.LD_DEFAULT_DRIVER
+    const val folder = LDConstants.LD_DEFAULT_FOLDER
+  }
+  
+  
   private val delayTime = 1000L
   
-  private var _downloadInfo = MutableLiveData<Event<Download>>()
-  var downloadInfo: LiveData<Event<Download>> = _downloadInfo
+  //Simulating download only
+  private var _workProgress = MutableLiveData<Event<LDDownload>>()
+  var workProgress: LiveData<Event<LDDownload>> = _workProgress
   
+  //Executor schema
   private var _schema = MutableStateFlow<ExecutorSchema>(ExecutorSchema.Queue)
   var schema: StateFlow<ExecutorSchema> = _schema
   
   
-  private var workingJobList: MutableMap<String, Triple<ExecutorSchema, Job, Download>> = mutableMapOf() //avoid using Conflate for download
+  private var _list = MutableLiveData<Event<List<LDDownload>>>()
+  var list: LiveData<Event<List<LDDownload>>> = _list
+  
+  //LookDown LiveData
+  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(LookDownUtil.ldDownloadLiveData) { Event(it) }
+  
+  private var workingJobList: MutableMap<String, Triple<ExecutorSchema, Job, LDDownload>> = mutableMapOf() //avoid using Conflate for download
   
   
-  private fun removeJob(download: Download) {
+  fun buildList(){
+    baseCoroutineScope.launch(Dispatchers.IO) {
+      val list = LDDownloadUtils.checkFileExists(context, driver, folder, LDDownloadUtils.buildFakeLDDownloadList() as MutableList)
+      withContext(Dispatchers.Main){
+        _list.value = Event(list)
+      }
+    }
+  }
+  
+  private fun removeJob(download: LDDownload) {
     workingJobList.remove(download.id)
   }
   
@@ -49,12 +79,13 @@ class DownloadViewModel @ViewModelInject constructor(
     }
   }
   
-  fun stopDownload(download: Download) {
+  fun stopDownload(download: LDDownload, position: Int) {
     baseCoroutineScope.launch {
       workingJobList[download.id]?.let {
         it.second.cancelAndJoin()
-        download.state = DownloadState.Paused
-        _downloadInfo.value = Event(download)
+        download.state = LDDownloadState.Paused
+        download.params?.set(KEY_POSITION, position.toString())
+        LookDownUtil.updateLDDownload(download)
       }
     }
   }
@@ -62,58 +93,86 @@ class DownloadViewModel @ViewModelInject constructor(
   fun stopAllDownload() {
     launch(ExecutorSchema.Concurrent) {
       workingJobList.forEach { map ->
-        map.value.third.state = DownloadState.Paused
-        updateDownloadInfo(map.value.third)
+        map.value.third.state = LDDownloadState.Paused
+        LookDownUtil.updateLDDownload(map.value.third)
         map.value.second.cancel()
       }
     }
   }
   
-  fun deleteDownload(download: Download) {
-    baseCoroutineScope.launch {
-      download.updateProgress(0)
-      updateDownloadInfo(download)
+  fun deleteDownload(download: LDDownload, position: Int) {
+    launch(ExecutorSchema.Concurrent) {
+      val res = LookDownUtil.deleteFile(context, driver, folder, download.filename!!, download.fileExtension!!)
+      if(!res){
+        download.state = LDDownloadState.Error("File not deleted")
+      }else{
+        download.updateProgress(0)
+        download.params?.set(KEY_POSITION, position.toString())
+      }
+      LookDownUtil.updateLDDownload(download)
     }
   }
   
-  fun startDownload(download: Download) {
-    download.state = DownloadState.Queued
-    _downloadInfo.value = Event(download)
-    val job = launch(schema.value) {
-      withContext(Dispatchers.IO) {
-        AppLogger.log("Start download file ${download.title} with progress ${download.progress}")
-        download.state = DownloadState.Downloading
-        workProgress(download)
-        AppLogger.log("Finished download file ${download.title} with progress ${download.progress}")
-      }
-      
-    }
-    handleConflate(schema.value)
-    workingJobList[download.id] = Triple(schema.value, job, download)
-    
+
+
+  
+  @InternalCoroutinesApi
+  fun startDownload(download: LDDownload, position:Int){
     baseCoroutineScope.launch {
+      download.state = LDDownloadState.Queued
+      download.params = mutableMapOf(Pair(KEY_POSITION, position.toString()))
+      LookDownUtil.updateLDDownload(download)
+  
+      val job = launch(schema.value) {
+        withContext(Dispatchers.IO) {
+          AppLogger.log("Start download file ${download.title} with progress ${download.progress}")
+          // simulateWorkProgress(download)
+          downloadFile(download)
+          AppLogger.log("Finished download file ${download.title} with progress ${download.progress}")
+        }
+      }
+      handleConflate(schema.value)
+      workingJobList[download.id] = Triple(schema.value, job, download)
+      
       job.join()
       removeJob(download) //remove job after finish
     }
   }
   
-  private fun handleConflate(schema: ExecutorSchema) {
+
+  
+  private suspend fun handleConflate(schema: ExecutorSchema) {
     //Conflate will kill any working progress, so avoid use it for download
     //Manually stopping other downloads
     if(schema == ExecutorSchema.Conflated){
       workingJobList.filter { map -> map.value.first == ExecutorSchema.Conflated }
         .forEach { map->
-          if(map.value.third.state == DownloadState.Downloading){
+          if(map.value.third.state == LDDownloadState.Downloading){
             map.value.second.cancel()
-            map.value.third.state = DownloadState.Paused
-            _downloadInfo.value = Event(map.value.third)
+            map.value.third.state = LDDownloadState.Paused
+            LookDownUtil.updateLDDownload(map.value.third)
           }
         }
     }
   }
   
-  private suspend fun workProgress(download: Download) {
-    download.state = DownloadState.Downloading
+  
+  @InternalCoroutinesApi
+  private suspend fun downloadFile(download: LDDownload){
+    if(download.validateInfoForDownloading()){
+      download.state = LDDownloadState.Downloading
+      LookDownUtil.updateLDDownload(download)
+      LookDownUtil.downloadWithFlow(this.context, download.url!!, download.filename!!, download.fileExtension!!, download.id,
+                                    driver = null, folder =null, resumeDownload = true, params = download.params, title = download.title)
+    }else{
+      download.state = LDDownloadState.Error("Missing download info")
+      LookDownUtil.updateLDDownload(download)
+    }
+  }
+  
+  
+  private suspend fun simulateWorkProgress(download: LDDownload) {
+    download.state = LDDownloadState.Downloading
     updateDownloadInfo(download)
     for (i in download.progress..100 step 10) {
       download.updateProgress(i)
@@ -123,9 +182,9 @@ class DownloadViewModel @ViewModelInject constructor(
     }
   }
   
-  private suspend fun updateDownloadInfo(download: Download) {
+  private suspend fun updateDownloadInfo(download: LDDownload) {
     withContext(Dispatchers.Main) {
-      _downloadInfo.value = Event(download)
+      _workProgress.value = Event(download)
     }
   }
   

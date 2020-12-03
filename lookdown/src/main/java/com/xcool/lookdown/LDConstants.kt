@@ -6,7 +6,7 @@ import com.andrefilgs.fileman.FilemanDrivers
 /**
  * @author André Filgueiras on 30/11/2020
  */
-object LookDownConstants {
+object LDConstants {
   
   const val LD_TEMP_EXT = ".tmp"
   const val LD_VIDEO_EXT = ".mp4"

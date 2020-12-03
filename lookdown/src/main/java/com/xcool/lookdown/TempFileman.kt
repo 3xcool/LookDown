@@ -20,7 +20,7 @@ object TempFileman {
   }
   
   fun deleteFile(context: Context, drive: Int, folderStr: String, fileName: String):Boolean{
-    val file = getFile(context, drive, folderStr,fileName) ?: return false
+    val file = getFile(context, drive, folderStr, fileName) ?: return false
     return file.delete()
   }
   

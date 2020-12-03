@@ -10,10 +10,9 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xcool.coroexecutor.core.ExecutorSchema
-import com.xcool.lookdownapp.R
+import com.xcool.lookdown.model.LDDownload
+import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdownapp.databinding.ActivitySample02Binding
-import com.xcool.lookdownapp.samples.sample02.model.Download
-import com.xcool.lookdownapp.samples.sample02.model.DownloadState
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.InternalCoroutinesApi
@@ -35,6 +34,7 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   
   
   
+  @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -58,6 +58,7 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
   }
   
+  @ExperimentalCoroutinesApi
   private fun setClickListeners() {
     binding.downloadBtnStopAll.setOnClickListener {
       viewModel.stopAllDownload()
@@ -73,6 +74,7 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
     return list
   }
   
+  @ExperimentalCoroutinesApi
   private fun setupRecyclerView() {
     val context = this
     downAdapter = DownloadAdapter(this)
@@ -82,9 +84,11 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
       // addOnScrollListener(this@ActivityDownload.scrollListener)
     }
     // downAdapter.differ.submitList(Download.buildFakeDownloadList())
-    downAdapter.downloadList = Download.buildFakeDownloadList()
+    // downAdapter.downloadList = LDDownloadUtils.buildFakeLDDownloadList()
+    viewModel.buildList()
   }
   
+  @ExperimentalCoroutinesApi
   private fun setSpinner() {
     val arrayAdapter: ArrayAdapter<String> = ArrayAdapter(
       this,
@@ -107,6 +111,7 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
     //do nothing
   }
   
+  @ExperimentalCoroutinesApi
   override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, p3: Long) {
     //    val item = parent!!.getItemAtPosition(position).toString()
     val executorClass  = ExecutorSchema::class.sealedSubclasses.filter {
@@ -117,12 +122,14 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
     }
   }
   
-  override fun onDownloadIconClick(download: Download, position: Int) {
+  @ExperimentalCoroutinesApi
+  @InternalCoroutinesApi
+  override fun onDownloadIconClick(download: LDDownload, position: Int) {
     when(download.getCurrentDownloadState()){
-      DownloadState.Empty       -> viewModel.startDownload(download)
-      DownloadState.Paused      -> viewModel.startDownload(download)
-      DownloadState.Downloading -> viewModel.stopDownload(download)
-      DownloadState.Downloaded  -> viewModel.deleteDownload(download)
+      LDDownloadState.Empty -> viewModel.startDownload(download, position)
+      LDDownloadState.Paused       -> viewModel.startDownload(download, position)
+      LDDownloadState.Downloading -> viewModel.stopDownload(download, position)
+      LDDownloadState.Downloaded  -> viewModel.deleteDownload(download, position)
       else                      -> Unit
     }
     
@@ -132,9 +139,21 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   @InternalCoroutinesApi
   @ExperimentalCoroutinesApi
   private fun subscribeObservers(){
-    viewModel.downloadInfo.observe(this, { event ->
+    viewModel.list.observe(this, { event ->
+      event.getContentIfNotHandled().let{ list ->
+        list?.let{ downAdapter.downloadList = it }
+      }
+    })
+    
+    viewModel.workProgress.observe(this, { event ->
       event.getContentIfNotHandled().let{ download ->
-        download?.let{downAdapter.updateDownload(it)}
+        download?.let{ downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+      }
+    })
+  
+    viewModel.ldDownloadFlow.observe(this, {event->
+      event.getContentIfNotHandled().let{download ->
+        download?.let{ downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
       }
     })
     

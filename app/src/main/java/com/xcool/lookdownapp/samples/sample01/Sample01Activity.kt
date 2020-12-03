@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
-import com.xcool.lookdown.LookDownConstants
+import com.xcool.lookdown.LDConstants
 import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdownapp.app.AppLogger
@@ -28,7 +28,7 @@ class Sample01Activity : AppCompatActivity() {
   private val viewModel : Sample01ViewModel by viewModels()
   
   var start = 0L
-  var chunkSize = LookDownConstants.LD_CHUNK_SIZE
+  var chunkSize = LDConstants.LD_CHUNK_SIZE
   
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
@@ -60,16 +60,16 @@ class Sample01Activity : AppCompatActivity() {
   }
   
   private fun renderScreen(ldDownload: LDDownload){
-    when(ldDownload.stateLD){
+    when(ldDownload.state){
       LDDownloadState.Downloading -> binding.progressbar.visibility = View.VISIBLE
       LDDownloadState.Queued      -> binding.progressbar.visibility = View.VISIBLE
       else                        -> binding.progressbar.visibility = View.GONE
     }
-    binding.progressbarDownload.isIndeterminate = ldDownload.stateLD == LDDownloadState.Queued
+    binding.progressbarDownload.isIndeterminate = ldDownload.state == LDDownloadState.Queued
     binding.progressbarDownload.progress = ldDownload.progress
-    binding.tvProgress.text = "${ldDownload.stateLD!!::class.java.simpleName}: ${ldDownload.progress}%"
+    binding.tvProgress.text = "${ldDownload.state!!::class.java.simpleName}: ${ldDownload.progress}%"
   
-    if(ldDownload.stateLD == LDDownloadState.Downloaded) finishDownload()
+    if(ldDownload.state == LDDownloadState.Downloaded) finishDownload()
   }
   
   @ExperimentalCoroutinesApi

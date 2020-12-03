@@ -5,9 +5,9 @@ import androidx.hilt.Assisted
 import androidx.hilt.lifecycle.ViewModelInject
 import androidx.lifecycle.*
 import com.xcool.coroexecutor.core.Executor
-import com.xcool.lookdown.LookDownConstants
-import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_DRIVER
-import com.xcool.lookdown.LookDownConstants.LD_DEFAULT_FOLDER
+import com.xcool.lookdown.LDConstants
+import com.xcool.lookdown.LDConstants.LD_DEFAULT_DRIVER
+import com.xcool.lookdown.LDConstants.LD_DEFAULT_FOLDER
 import com.xcool.lookdown.LookDownUtil
 import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdown.model.LDDownload
@@ -55,13 +55,13 @@ class Sample01ViewModel @ViewModelInject constructor(
         value.cancel()
         if(checked){
           ldDownloadFlow.value?.let{
-            it.stateLD = LDDownloadState.Paused
+            it.state = LDDownloadState.Paused
             LookDownUtil.updateLDDownload(it)
           }
         }else{
           LookDownUtil.cancelAllDownloads()  //using this work around to cancel
           ldDownload.value?.let{
-            it.stateLD = LDDownloadState.Paused
+            it.state = LDDownloadState.Paused
             ldDownload.value = it
           }
         }
@@ -74,10 +74,10 @@ class Sample01ViewModel @ViewModelInject constructor(
     baseCoroutineScope.launch {
       _loading.value = true
       withContext(Dispatchers.IO){
-        val res = LookDownUtil.deleteFile(context, LookDownConstants.LD_DEFAULT_DRIVER, LookDownConstants.LD_DEFAULT_FOLDER, "$filename$extension")
+        val res = LookDownUtil.deleteFile(context, LDConstants.LD_DEFAULT_DRIVER, LDConstants.LD_DEFAULT_FOLDER, filename, extension)
         withContext(Dispatchers.Main) {
           _feedback.value = if(res.orDefault()) "File deleted" else "File not deleted"
-          ldDownload.value = LDDownload(stateLD=LDDownloadState.Empty, progress = 0)
+          ldDownload.value = LDDownload(state=LDDownloadState.Empty, progress = 0)
         }
       }
       _loading.value = false
@@ -102,7 +102,7 @@ class Sample01ViewModel @ViewModelInject constructor(
   @InternalCoroutinesApi
   fun downloadWithFlow(url:String, withResume:Boolean){
     val job = baseCoroutineScope.launch(Dispatchers.IO) {
-      LookDownUtil.downloadWithFlow(context, url, filename, extension, driver, folder, withResume)
+      LookDownUtil.downloadWithFlow(context, url, filename, extension, null, driver, folder, withResume)
     }
     jobsList[filename] = job
   }
