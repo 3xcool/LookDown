@@ -2,11 +2,12 @@ package com.xcool.lookdown
 
 import android.content.Context
 import androidx.lifecycle.*
-import com.xcool.lookdown.LDConstants.LD_CONNECTTIMEOUT
-import com.xcool.lookdown.LDConstants.LD_DEFAULT_DRIVER
-import com.xcool.lookdown.LDConstants.LD_DEFAULT_FOLDER
-import com.xcool.lookdown.LDConstants.LD_TEMP_EXT
-import com.xcool.lookdown.LDConstants.LD_TIMEOUT
+import com.xcool.lookdown.LDGlobals.LD_CHUNK_SIZE
+import com.xcool.lookdown.LDGlobals.LD_CONNECTTIMEOUT
+import com.xcool.lookdown.LDGlobals.LD_DEFAULT_DRIVER
+import com.xcool.lookdown.LDGlobals.LD_DEFAULT_FOLDER
+import com.xcool.lookdown.LDGlobals.LD_TEMP_EXT
+import com.xcool.lookdown.LDGlobals.LD_TIMEOUT
 import com.xcool.lookdown.log.LDLogger
 import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdown.model.LDDownload
@@ -27,14 +28,16 @@ import java.util.*
  */
 object LookDownLite : ViewModel() {
   
-  var chunkSize = LDConstants.LD_CHUNK_SIZE
+  var chunkSize = LD_CHUNK_SIZE
+  var timeout = LD_TIMEOUT
+  var connectTimeout = LD_CONNECTTIMEOUT
   
-  fun deleteFile(context: Context, drive: Int, folderStr: String, filename: String, fileExtension: String): Boolean {
-    return TempFileman.deleteFile(context, drive, folderStr, filename + fileExtension)
+  fun deleteFile(context: Context, driver: Int, folder: String, filename: String, fileExtension: String): Boolean {
+    return TempFileman.deleteFile(context, driver, folder, filename + fileExtension)
   }
   
-  fun getFile(context: Context, drive: Int, folderStr: String, filename: String, fileExtension: String): File? {
-    return TempFileman.getFile(context, drive, folderStr, filename + fileExtension)
+  fun getFile(context: Context, driver: Int, folder: String, filename: String, fileExtension: String): File? {
+    return TempFileman.getFile(context, driver, folder, filename + fileExtension)
   }
   
   //to Allow cancel
@@ -55,15 +58,15 @@ object LookDownLite : ViewModel() {
    * Download any file
    * Override Download function with LDDownload as parameter
    */
-  fun download(context: Context,
-               ldDownload: LDDownload,
-               driver: Int? = LD_DEFAULT_DRIVER,
-               folder: String? = LD_DEFAULT_FOLDER,
-               resumeDownload: Boolean?=true,
-               headers: Map<String, String>? = null,
+  fun downloadSimple(context: Context,
+                     ldDownload: LDDownload,
+                     driver: Int? = LD_DEFAULT_DRIVER,
+                     folder: String? = LD_DEFAULT_FOLDER,
+                     resumeDownload: Boolean?=true,
+                     headers: Map<String, String>? = null,
   ): LDDownload {
     return try {
-      download(context, ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!, driver, folder, resumeDownload, headers, ldDownload)
+      downloadSimple(context, ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!, driver, folder, resumeDownload, headers, ldDownload)
     }catch (e:Exception){
       ldDownload.state = LDDownloadState.Error(e.message ?: e.localizedMessage)
       ldDownload
@@ -87,15 +90,15 @@ object LookDownLite : ViewModel() {
    * @param headers any needed header for HTTP authentication
    *
    */
-  fun download(context: Context,
-               urlStr: String,
-               filename: String,
-               fileExtension: String,
-               driver: Int? = LD_DEFAULT_DRIVER,
-               folder: String? = LD_DEFAULT_FOLDER,
-               resumeDownload: Boolean? = true,
-               headers: Map<String, String>? = null,
-               mLDDownload: LDDownload?=null
+  fun downloadSimple(context: Context,
+                     urlStr: String,
+                     filename: String,
+                     fileExtension: String,
+                     driver: Int? = LD_DEFAULT_DRIVER,
+                     folder: String? = LD_DEFAULT_FOLDER,
+                     resumeDownload: Boolean? = true,
+                     headers: Map<String, String>? = null,
+                     mLDDownload: LDDownload?=null
   ): LDDownload {
     downloadJobs[urlStr] = true
     var input: InputStream? = null
@@ -136,8 +139,8 @@ object LookDownLite : ViewModel() {
       }
       ldDownload.file = file
       
-      connection.readTimeout = LD_TIMEOUT
-      connection.connectTimeout = LD_CONNECTTIMEOUT
+      connection.readTimeout = timeout
+      connection.connectTimeout = connectTimeout
       connection.useCaches = false
       connection.requestMethod = "GET" // GET, POST,HEAD,OPTIONS,PUT,DELETE,TRACE
       
@@ -224,17 +227,17 @@ object LookDownLite : ViewModel() {
    */
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
-  suspend fun downloadWithFlow(context: Context,
-                           ldDownload: LDDownload,
-                           driver: Int? = LD_DEFAULT_DRIVER,
-                           folder: String? = LD_DEFAULT_FOLDER,
-                           resumeDownload: Boolean?=true,
-                           headers: Map<String, String>? = null,
+  suspend fun download(context: Context,
+                       ldDownload: LDDownload,
+                       driver: Int? = LD_DEFAULT_DRIVER,
+                       folder: String? = LD_DEFAULT_FOLDER,
+                       resumeDownload: Boolean?=true,
+                       headers: Map<String, String>? = null,
   ){
     try {
-      return  downloadWithFlow(context, urlStr = ldDownload.url!!, filename =  ldDownload.filename!!, fileExtension =  ldDownload.fileExtension!!, id = ldDownload.id,
-                               driver = driver, folder =  folder, resumeDownload =  resumeDownload, headers =  headers,
-                               params = ldDownload.params, title = ldDownload.title, mLDDownload = ldDownload )
+      return  download(context, urlStr = ldDownload.url!!, filename =  ldDownload.filename!!, fileExtension =  ldDownload.fileExtension!!, id = ldDownload.id,
+                       driver = driver, folder =  folder, resumeDownload =  resumeDownload, headers =  headers,
+                       params = ldDownload.params, title = ldDownload.title, mLDDownload = ldDownload )
     }catch (e:Exception){
       ldDownload.state = LDDownloadState.Error(e.message ?: e.localizedMessage)
       updateLDDownload(ldDownload)
@@ -260,25 +263,25 @@ object LookDownLite : ViewModel() {
    * @param params generic mutable map for any other needed property
    *
    */
-  suspend fun downloadWithFlow(context: Context,
-                               urlStr: String,
-                               filename: String,
-                               fileExtension: String,
-                               id: String? = null,
-                               driver: Int? = LD_DEFAULT_DRIVER,
-                               folder: String? = LD_DEFAULT_FOLDER,
-                               resumeDownload: Boolean? = true,
-                               headers: Map<String, String>? = null,
-                               title: String? = null,
-                               params: MutableMap<String, String>? = null,
-                               mLDDownload: LDDownload?=null
+  suspend fun download(context: Context,
+                       urlStr: String,
+                       filename: String,
+                       fileExtension: String,
+                       id: String? = null,
+                       driver: Int? = LD_DEFAULT_DRIVER,
+                       folder: String? = LD_DEFAULT_FOLDER,
+                       resumeDownload: Boolean? = true,
+                       headers: Map<String, String>? = null,
+                       title: String? = null,
+                       params: MutableMap<String, String>? = null,
+                       mLDDownload: LDDownload?=null
   ) {
     var input: InputStream? = null
     var output: OutputStream? = null
     var fileTotalLength = 0L
     var tempFileExists = false
     
-    val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = urlStr, filename = filename, state = LDDownloadState.Queued, params = params, title = title)
+    val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = urlStr, filename = filename, state = LDDownloadState.Queued, title = title, params = params)
     val file = TempFileman.getFile(context, driver ?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")
     
     if (file == null) {
@@ -299,10 +302,6 @@ object LookDownLite : ViewModel() {
     flow {
       LDLogger.log("Starting download: $urlStr")
       emit(ldDownload)
-      
-      // val url = URL(urlStr)
-      // val connection = url.openConnection() as HttpURLConnection
-      
       if (file.exists() && resumeDownload.orDefault()) {
         tempFileExists = true
         LDLogger.log("File exists and download will be restarted from ${formatFileSize(file.length())}")
@@ -318,8 +317,8 @@ object LookDownLite : ViewModel() {
       }
       ldDownload.file = file
       
-      connection.readTimeout = LD_TIMEOUT
-      connection.connectTimeout = LD_CONNECTTIMEOUT
+      connection.readTimeout = timeout
+      connection.connectTimeout = connectTimeout
       connection.useCaches = false
       connection.requestMethod = "GET" // GET, POST,HEAD,OPTIONS,PUT,DELETE,TRACE
       

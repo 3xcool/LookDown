@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
-import com.xcool.lookdown.LDConstants
+import com.xcool.lookdown.LDGlobals
 import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdownapp.app.AppLogger
@@ -28,7 +28,7 @@ class Sample01Activity : AppCompatActivity() {
   private val viewModel : Sample01ViewModel by viewModels()
   
   var start = 0L
-  var chunkSize = LDConstants.LD_CHUNK_SIZE
+  var chunkSize = LDGlobals.LD_CHUNK_SIZE
   
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi

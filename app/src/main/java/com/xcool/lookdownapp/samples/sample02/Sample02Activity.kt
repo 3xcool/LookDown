@@ -124,7 +124,6 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
   override fun onDownloadIconClick(download: LDDownload, position: Int) {
-    AppLogger.log("Click triggered")
     when(download.getCurrentDownloadState()){
       LDDownloadState.Empty -> viewModel.startDownload(download, position)
       LDDownloadState.Queued  -> viewModel.stopDownload(download, position)
@@ -132,10 +131,10 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
       LDDownloadState.Downloading -> viewModel.stopDownload(download, position)
       LDDownloadState.Downloaded  -> viewModel.deleteDownload(download, position)
       LDDownloadState.Incomplete  -> viewModel.startDownload(download, position)
-      else -> Unit
-      // else                      -> {
-      //   if( download.state is LDDownloadState.Error) viewModel.startDownload(download, position)  //error can be triggered if using Conflate
-      // }
+      // else -> Unit
+      else                      -> {
+        if( download.state is LDDownloadState.Error) viewModel.startDownload(download, position)  //error can be triggered if using Conflate cause Coroutine will cancel this download automatically
+      }
     }
     
     

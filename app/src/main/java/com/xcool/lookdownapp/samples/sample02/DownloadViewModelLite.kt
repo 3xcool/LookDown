@@ -12,6 +12,7 @@ import com.xcool.coroexecutor.core.Executor
 import com.xcool.coroexecutor.core.ExecutorSchema
 import com.xcool.lookdown.LDGlobals
 import com.xcool.lookdown.LookDown
+import com.xcool.lookdown.LookDownLite
 import com.xcool.lookdown.model.LDDownload
 import com.xcool.lookdown.model.LDDownloadState
 import com.xcool.lookdownapp.app.AppLogger
@@ -26,7 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 //Transformations: https://proandroiddev.com/livedata-transformations-4f120ac046fc
 
 @ExperimentalCoroutinesApi
-class DownloadViewModel @ViewModelInject constructor(
+class DownloadViewModelLite @ViewModelInject constructor(
   @ApplicationContext val context: Context,
   executor: Executor,
   @Assisted private val state: SavedStateHandle
@@ -36,28 +37,6 @@ class DownloadViewModel @ViewModelInject constructor(
     const val KEY_POSITION ="position"
     val driver = LDGlobals.LD_DEFAULT_DRIVER
     val folder = LDGlobals.LD_DEFAULT_FOLDER
-  }
-  
-  private lateinit var lookDown : LookDown
-  
-  init {
-    // *** THE SIMPLEST way to use LookDown ***
-    // val lookDown = LookDown.Builder(context).build() //For default values
-    // val file = LDDownload(url = "", filename = "")
-    // lookDown.download(file)
-    
-    val builder = LookDown.Builder(context)
-    builder.apply {
-      setChunkSize(4096)
-      setFileExtension(LDGlobals.LD_VIDEO_MP4_EXT)
-      setDriver(1) //0 = Sandbox (Where the app is installed), 1 = Internal (Phone), 2 = SD Card
-      setFolder(LDGlobals.LD_DEFAULT_FOLDER)
-      setForceResume(true)
-      setTimeout(5000)
-      setConnectTimeout(5000)
-      // setHeaders()
-    }
-    lookDown = builder.build()
   }
   
   
@@ -75,7 +54,7 @@ class DownloadViewModel @ViewModelInject constructor(
   var list: LiveData<Event<List<LDDownload>>> = _list
   
   //LookDown LiveData
-  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveData) { Event(it) }
+  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(LookDownLite.ldDownloadLiveData) { Event(it) }
   
   //Turn around for Conflate
   private var workingJobList: MutableMap<String, Triple<ExecutorSchema, Job, LDDownload>> = mutableMapOf()
@@ -107,7 +86,7 @@ class DownloadViewModel @ViewModelInject constructor(
         it.second.cancelAndJoin()
         download.setStateAfterStopDownload()
         download.params?.set(KEY_POSITION, position.toString())
-        lookDown.updateLDDownload(download)
+        LookDownLite.updateLDDownload(download)
       }
     }
   }
@@ -116,7 +95,7 @@ class DownloadViewModel @ViewModelInject constructor(
     launch(ExecutorSchema.Concurrent) {
       workingJobList.forEach { map ->
         map.value.third.setStateAfterStopDownload()
-        lookDown.updateLDDownload(map.value.third)
+        LookDownLite.updateLDDownload(map.value.third)
         map.value.second.cancel()
       }
     }
@@ -124,14 +103,14 @@ class DownloadViewModel @ViewModelInject constructor(
   
   fun deleteDownload(download: LDDownload, position: Int) {
     launch(ExecutorSchema.Concurrent) {
-      val res = lookDown.deleteFile(download.filename!!, download.fileExtension!!)
+      val res = LookDownLite.deleteFile(context, driver, folder, download.filename!!, download.fileExtension!!)
       if(!res){
         download.state = LDDownloadState.Error("File not deleted")
       }else{
         download.updateProgress(0)
         download.params?.set(KEY_POSITION, position.toString())
       }
-      lookDown.updateLDDownload(download)
+      LookDownLite.updateLDDownload(download)
     }
   }
   
@@ -143,7 +122,7 @@ class DownloadViewModel @ViewModelInject constructor(
     baseCoroutineScope.launch {
       download.state = LDDownloadState.Queued
       download.params = mutableMapOf(Pair(KEY_POSITION, position.toString()))
-      lookDown.updateLDDownload(download)
+      LookDownLite.updateLDDownload(download)
   
       val job = launch(schema.value) {
         withContext(Dispatchers.IO) {
@@ -172,7 +151,7 @@ class DownloadViewModel @ViewModelInject constructor(
           if(map.value.third.state == LDDownloadState.Downloading){
             map.value.second.cancel()
             map.value.third.state = LDDownloadState.Paused
-            lookDown.updateLDDownload(map.value.third)
+            LookDownLite.updateLDDownload(map.value.third)
           }
         }
     }
@@ -180,21 +159,20 @@ class DownloadViewModel @ViewModelInject constructor(
   
   
   @InternalCoroutinesApi
-  private suspend fun downloadFile(ldDownload: LDDownload){
-    if(ldDownload.validateInfoForDownloading()){
-      ldDownload.state = LDDownloadState.Downloading
-      lookDown.updateLDDownload(ldDownload)
+  private suspend fun downloadFile(download: LDDownload){
+    if(download.validateInfoForDownloading()){
+      download.state = LDDownloadState.Downloading
+      LookDownLite.updateLDDownload(download)
+      LookDownLite.download(this.context, download, driver, folder, true, null) //passing ldDownload or
       
-      //With Flow (Better way)
-      lookDown.download(ldDownload) //passing ldDownload or passing everything
-      // lookDown.download( ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!, ldDownload.id, ldDownload.title, ldDownload.params)
-      
-      //With Simple Way (No need to suspend)
-      // lookDown.downloadSimple(ldDownload)
-      // lookDown.downloadSimple(ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!)
+      // LookDownLite.downloadWithFlow(this.context, download.url!!, download.filename!!, download.fileExtension!!, download.id,
+      //                               driver = driver, folder = folder, resumeDownload = true, params = download.params, title = download.title)
     }else{
-      ldDownload.state = LDDownloadState.Error("Missing download info")
-      lookDown.updateLDDownload(ldDownload)
+      download.state = LDDownloadState.Error("Missing download info")
+      LookDownLite.updateLDDownload(download)
+      
+      
+      
     }
   }
   

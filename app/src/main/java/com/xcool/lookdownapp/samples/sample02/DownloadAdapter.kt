@@ -36,11 +36,7 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
     get() = differ.currentList
     set(value) = differ.submitList(value)
   
-  // var downloadList: MutableList<LDDownload>
-  //   get() = differ.currentList
-  //   set(value) = differ.submitList(value)
   
-  //todo 100 investigate render problem
   fun updateDownloadProgress(download: LDDownload, mPosition: Int?=null){
     val position = mPosition ?: differ.currentList.indexOf(download)
     if(position != -1){

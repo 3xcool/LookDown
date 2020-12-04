@@ -14,17 +14,17 @@ import java.util.*
 data class LDDownload(
   var id: String = UUID.randomUUID().toString(),
   var url: String? = null,
-  var file: File? = null,
   var filename: String? = null,
   var fileExtension: String? = null,
+  var file: File? = null,
   var fileSize: Long? = null,
   var downloadedBytes: Long? = null,
   var lastModified: String? = null,
   var progress: Int = 0,
-  var state: LDDownloadState?=LDDownloadState.Empty,
-  var feedback: String?=null,
-  var title: String?=null,
-  var params: MutableMap<String,String>?=null,
+  var state: LDDownloadState? = LDDownloadState.Empty,
+  var feedback: String? = null,
+  var title: String? = null,
+  var params: MutableMap<String, String>? = null,
 ){
   
   fun validateInfoForDownloading(): Boolean {
