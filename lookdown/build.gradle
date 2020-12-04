@@ -1,6 +1,44 @@
 plugins {
     id 'com.android.library'
     id 'kotlin-android'
+
+    id 'com.github.dcendents.android-maven'
+    id 'com.jfrog.bintray'
+}
+
+def versionMajor = 0
+def versionMinor = 0
+def versionPatch = 1
+
+ext {
+    bintrayRepo = 'maven' // Name of the Bintray repo you created
+    bintrayName = 'com.3xcool.utility:lookdown' // Bintray package name
+
+    publishedGroupId = 'com.3xcool.utility' // Group ID of the SDK which will be added in implementation line of gradle
+    artifact = 'lookdown' // Artifact ID of the SDK which will be added in implementation line of gradle
+    libraryVersion = '0.0.1' //versionMajor * 10000 + versionMinor * 100 + versionPatch  // Version of the library you created in Bintray
+
+    libraryName = 'LookDown' // It is generally the module name
+    libraryDescription = 'Auxiliar library to Download any File' // Small description of the library
+
+    siteUrl = 'https://github.com/3xcool/lookdown'
+    gitUrl = 'https://github.com/3xcool/lookdown'
+
+    developerId = '3xcool'
+    developerName = 'Andre Filgueiras'
+    developerEmail = 'alg.filgueiras@gmail.com'
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+
+    //Bintray Credentials
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('mylocal.properties').newDataInputStream())
+
+    bintrayUsername = properties.getProperty('BINTRAY_USERNAME')
+    bintrayUserOrg = properties.getProperty('BINTRAY_ORG')
+    bintrayApiKey = properties.getProperty('BINTRAY_API_KEY')
 }
 
 android {
@@ -44,8 +82,8 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
 
-    implementation 'com.3xcool.utility:coroexecutor:0.1.0'
-    implementation 'com.3xcool.utility:fileman:2.1.4'
+//    implementation 'com.3xcool.utility:coroexecutor:0.1.0'
+    implementation 'com.3xcool.utility:fileman:2.1.5'
 
     //Kotlin Coroutines
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9"

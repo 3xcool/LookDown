@@ -17,8 +17,8 @@ import kotlinx.coroutines.InternalCoroutinesApi
 @AndroidEntryPoint
 class Sample01Activity : AppCompatActivity() {
   
-  // private val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"  //todo 10000 check when server don't pass file length
-  private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"
+  private val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"
+  // private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"
   // private val 3xCoolEVT = "https://tekmoon.com/spaces/images/3XCool_evt.png"
   
   

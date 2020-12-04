@@ -12,9 +12,10 @@ object LDGlobals {
   const val LD_PNG_EXT = ".png"
   const val LD_JSON_EXT = ".json"
   
+  var LD_PROGRESS_RENDER_DELAY = 500L
   var LD_CHUNK_SIZE = 1024
   var LD_TIMEOUT = 5000
   var LD_CONNECTTIMEOUT = 5000
   var LD_DEFAULT_FOLDER = "/lookdown"
-  var LD_DEFAULT_DRIVER = FilemanDrivers.Internal.type
+  var LD_DEFAULT_DRIVER = FilemanDrivers.Internal.type //0 = SandBox, 1= Device, 2 = SD Card //
 }

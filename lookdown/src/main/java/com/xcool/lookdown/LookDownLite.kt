@@ -1,11 +1,14 @@
 package com.xcool.lookdown
 
 import android.content.Context
+import androidx.annotation.RequiresPermission
 import androidx.lifecycle.*
+import com.andrefilgs.fileman.Fileman
 import com.xcool.lookdown.LDGlobals.LD_CHUNK_SIZE
 import com.xcool.lookdown.LDGlobals.LD_CONNECTTIMEOUT
 import com.xcool.lookdown.LDGlobals.LD_DEFAULT_DRIVER
 import com.xcool.lookdown.LDGlobals.LD_DEFAULT_FOLDER
+import com.xcool.lookdown.LDGlobals.LD_PROGRESS_RENDER_DELAY
 import com.xcool.lookdown.LDGlobals.LD_TEMP_EXT
 import com.xcool.lookdown.LDGlobals.LD_TIMEOUT
 import com.xcool.lookdown.log.LDLogger
@@ -24,20 +27,24 @@ import java.util.*
 /**
  * @author André Filgueiras on 28/11/2020
  *
- * Simple Object with static functions with a lot of parameters
+ * Simple Object with static functions
+ *
+ * It is preferable that you use the LookDown class
  */
+
 object LookDownLite : ViewModel() {
   
+  var progressRenderDelay = LD_PROGRESS_RENDER_DELAY
   var chunkSize = LD_CHUNK_SIZE
   var timeout = LD_TIMEOUT
   var connectTimeout = LD_CONNECTTIMEOUT
   
   fun deleteFile(context: Context, driver: Int, folder: String, filename: String, fileExtension: String): Boolean {
-    return TempFileman.deleteFile(context, driver, folder, filename + fileExtension)
+    return Fileman.deleteFile(context, driver, folder, filename + fileExtension)
   }
   
   fun getFile(context: Context, driver: Int, folder: String, filename: String, fileExtension: String): File? {
-    return TempFileman.getFile(context, driver, folder, filename + fileExtension)
+    return Fileman.getFile(context, driver, folder, filename + fileExtension)
   }
   
   //to Allow cancel
@@ -113,7 +120,7 @@ object LookDownLite : ViewModel() {
       return ldDownload
     }
     
-    val file = TempFileman.getFile(context, driver ?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")
+    val file = Fileman.getFile(context, driver ?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")
     if (file == null) {
       ldDownload.state = LDDownloadState.Error("File can't be null")
       return ldDownload
@@ -167,7 +174,7 @@ object LookDownLite : ViewModel() {
       // might be -1: server did not report the length
       var fileTotalLength = connection.contentLength.toLong()
       LDLogger.log("Bytes to download: $fileTotalLength")
-      if (tempFileExists) fileTotalLength += file.length()  //if is resumed, the server will download only the difference, so we need to add to fileLength the bytes already downloaded
+      if (tempFileExists && fileTotalLength > 0) fileTotalLength += file.length()  //if is resumed, the server will download only the difference, so we need to add to fileLength the bytes already downloaded
       LDLogger.log("File Total Size: $fileTotalLength")
       ldDownload.fileSize = fileTotalLength
       
@@ -183,6 +190,7 @@ object LookDownLite : ViewModel() {
       LDLogger.log("Downloading...")
       while (input.read(data).also { chunk = it } != -1 && downloadJobs[urlStr].orDefault()) {
         downloadedBytes += chunk.toLong()
+        ldDownload.downloadedBytes = downloadedBytes
         if (fileTotalLength > 0) ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
         output.write(data, 0, chunk)
       }
@@ -198,7 +206,7 @@ object LookDownLite : ViewModel() {
         input?.close()
         if (ldDownload.state == LDDownloadState.Downloaded) {
           LDLogger.log("Removing .tmp extension")
-          TempFileman.removeTempExtension(file, LD_TEMP_EXT)
+          Fileman.removeTempExtension(file, LD_TEMP_EXT)
         }
         downloadJobs.remove(urlStr)
       } catch (ignored: IOException) {
@@ -210,13 +218,24 @@ object LookDownLite : ViewModel() {
   }
   
   
+  private var lastRender = 0L
   
   private var _ldDownload: MutableLiveData<LDDownload> = MutableLiveData()
   var ldDownloadLiveData: LiveData<LDDownload> = _ldDownload
   
-  suspend fun updateLDDownload(ldDownload: LDDownload) {
-    withContext(Dispatchers.Main) {
-      _ldDownload.value = ldDownload
+  /**
+   * @param forceUpdate will always update the value
+   */
+  suspend fun updateLDDownload(ldDownload: LDDownload, forceUpdate :Boolean= true) {
+    if(forceUpdate){
+      withContext(Dispatchers.Main) { _ldDownload.value = ldDownload}
+    }else{
+      val now = System.currentTimeMillis()
+      val delta = now - lastRender
+      if(delta > progressRenderDelay){
+        lastRender = now
+        withContext(Dispatchers.Main) { _ldDownload.value = ldDownload}
+      }
     }
   }
   
@@ -282,7 +301,7 @@ object LookDownLite : ViewModel() {
     var tempFileExists = false
     
     val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = urlStr, filename = filename, state = LDDownloadState.Queued, title = title, params = params)
-    val file = TempFileman.getFile(context, driver ?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")
+    val file = Fileman.getFile(context, driver ?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension$LD_TEMP_EXT")
     
     if (file == null) {
       ldDownload.state = LDDownloadState.Error("File can't be null")
@@ -343,7 +362,7 @@ object LookDownLite : ViewModel() {
       }
       
       fileTotalLength = connection.contentLength.toLong() // might be -1: server did not report the length
-      if (tempFileExists) fileTotalLength += file.length()  //if is resumed the server will download only the difference, so we need to add to fileLength which are the bytes already downloaded
+      if (tempFileExists && fileTotalLength > 0) fileTotalLength += file.length()  //if is resumed the server will download only the difference, so we need to add to fileLength which are the bytes already downloaded
       
       ldDownload.fileSize = fileTotalLength
       ldDownload.lastModified = connection.getHeaderField("Last-Modified")
@@ -359,9 +378,8 @@ object LookDownLite : ViewModel() {
       LDLogger.log("Downloading...")
       while (input!!.read(data).also { chunk = it } != -1) {
         downloadedBytes += chunk.toLong()
-        if (fileTotalLength > 0) {
-          ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
-        }
+        ldDownload.downloadedBytes = downloadedBytes
+        if (fileTotalLength > 0) ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
         // LDLogger.log("Writing ${ldDownload.filename}. Current progress: ${ldDownload.progress}")
         output!!.write(data, 0, chunk)
         emit(ldDownload)
@@ -378,7 +396,7 @@ object LookDownLite : ViewModel() {
       try {
         output?.close()
         input?.close()
-        if (ldDownload.state == LDDownloadState.Downloaded) TempFileman.removeTempExtension(file, LD_TEMP_EXT)
+        if (ldDownload.state == LDDownloadState.Downloaded) Fileman.removeTempExtension(file, LD_TEMP_EXT)
       } catch (ignored: IOException) {
       }
       connection.disconnect()

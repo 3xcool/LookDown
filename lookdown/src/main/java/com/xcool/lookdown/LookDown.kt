@@ -3,10 +3,12 @@ package com.xcool.lookdown
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.andrefilgs.fileman.Fileman
 import com.xcool.lookdown.LDGlobals.LD_CHUNK_SIZE
 import com.xcool.lookdown.LDGlobals.LD_CONNECTTIMEOUT
 import com.xcool.lookdown.LDGlobals.LD_DEFAULT_DRIVER
 import com.xcool.lookdown.LDGlobals.LD_DEFAULT_FOLDER
+import com.xcool.lookdown.LDGlobals.LD_PROGRESS_RENDER_DELAY
 import com.xcool.lookdown.LDGlobals.LD_TIMEOUT
 import com.xcool.lookdown.log.LDLogger
 import com.xcool.lookdown.model.LDDownload
@@ -30,6 +32,9 @@ import java.util.*
 
 /**
  * Main Class
+ * Avoid calling the functions on the Main thread
+ *
+ * @param progressRenderDelay To avoid UI Render Blinking inside RecyclerView we add some delay only for Downloading State (use 500ms or higher)
  */
 class LookDown(private val context: Context,
                private var id: String = UUID.randomUUID().toString(),
@@ -40,18 +45,21 @@ class LookDown(private val context: Context,
                private var chunkSize: Int= LD_CHUNK_SIZE,
                private var timeout: Int= LD_TIMEOUT,
                private var connectTimeout: Int= LD_CONNECTTIMEOUT,
-               private var fileExtension:String= ""
+               private var fileExtension:String= "",
+               private var progressRenderDelay:Long= LD_PROGRESS_RENDER_DELAY
                ) {
     
   //region Companion
   companion object{
+    fun setLogTag(tag:String) { LDLogger.ldTag = tag }
     fun activateLogs() { LDLogger.showLogs = true }
     fun deactivateLogs() { LDLogger.showLogs = false }
-    fun setDefaultTimeout(timeout:Int){ LDGlobals.LD_TIMEOUT = timeout }
-    fun setDefaultConnectionTimeout(timeout:Int){ LDGlobals.LD_CONNECTTIMEOUT = timeout }
+    fun setDefaultTimeout(timeout:Int){ LD_TIMEOUT = timeout }
+    fun setDefaultConnectionTimeout(timeout:Int){ LD_CONNECTTIMEOUT = timeout }
     fun setDefaultDriver(driver:Int){ LD_DEFAULT_DRIVER = driver }
     fun setDefaultFolder(folder:String){ LD_DEFAULT_FOLDER = folder }
     fun setDefaultChunkSize(chunkSize:Int){ LD_CHUNK_SIZE = chunkSize }
+    fun setDefaultProgressRenderDelay(renderDelay:Long){ LD_PROGRESS_RENDER_DELAY = renderDelay }
   }
   //endregion
   
@@ -67,6 +75,7 @@ class LookDown(private val context: Context,
     private var timeout: Int= LD_TIMEOUT
     private var connectTimeout: Int= LD_CONNECTTIMEOUT
     private var fileExtension: String= ""
+    private var progressRenderDelay: Long= LD_PROGRESS_RENDER_DELAY
     
     fun setId(id:String) {this.id = id }
     fun setDriver(driver:Int) {this.driver = driver}
@@ -77,6 +86,7 @@ class LookDown(private val context: Context,
     fun setTimeout(timeout:Int) {this.timeout = timeout}
     fun setConnectTimeout(connectTimeout:Int) {this.connectTimeout = connectTimeout}
     fun setFileExtension(fileExtension: String) {this.fileExtension = fileExtension}
+    fun setProgressRenderDelay(renderDelay: Long) {this.progressRenderDelay = renderDelay}
     
   
     private fun validateBuilder():Boolean{
@@ -85,7 +95,7 @@ class LookDown(private val context: Context,
   
     fun build(): LookDown {
       return LookDown(context, id=id, driver= driver, folder= folder, tryToResume= forceResume, headers= headers,
-                      chunkSize= chunkSize, timeout= timeout, connectTimeout=connectTimeout, fileExtension=fileExtension)
+                      chunkSize= chunkSize, timeout= timeout, connectTimeout=connectTimeout, fileExtension=fileExtension, progressRenderDelay= progressRenderDelay)
     }
   }
 
@@ -104,22 +114,35 @@ class LookDown(private val context: Context,
   //region File Management
   
   fun deleteFile(filename: String, fileExtension: String=this.fileExtension, driver: Int = this.driver , folder: String = this.folder): Boolean {
-    return TempFileman.deleteFile(context, driver, folder, filename + fileExtension)
+    return Fileman.deleteFile(context, driver, folder, filename + fileExtension)
   }
   
   fun getFile(filename: String, fileExtension: String = this.fileExtension, driver: Int? = this.driver , folder: String? = this.folder): File? {
-    return TempFileman.getFile(context, driver?:this.driver, folder ?:this.folder, filename + fileExtension)
+    return Fileman.getFile(context, driver?:this.driver, folder ?:this.folder, filename + fileExtension)
   }
   
   //endregion
   
   //region Main Download
+  private var lastRender = 0L
+  
   private var _ldDownload: MutableLiveData<LDDownload> = MutableLiveData()
   var ldDownloadLiveData: LiveData<LDDownload> = _ldDownload
   
-  suspend fun updateLDDownload(ldDownload: LDDownload) {
-    withContext(Dispatchers.Main) {
-      _ldDownload.value = ldDownload
+  
+  /**
+   * @param forceUpdate will always update the value
+   */
+  suspend fun updateLDDownload(ldDownload: LDDownload, forceUpdate :Boolean= true) {
+    if(forceUpdate){
+      withContext(Dispatchers.Main) { _ldDownload.value = ldDownload}
+    }else{
+      val now = System.currentTimeMillis()
+      val delta = now - lastRender
+      if(delta > progressRenderDelay){
+        lastRender = now
+        withContext(Dispatchers.Main) { _ldDownload.value = ldDownload}
+      }
     }
   }
   
@@ -167,9 +190,9 @@ class LookDown(private val context: Context,
     var fileTotalLength = 0L
     var tempFileExists = false
     
-    val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = urlStr, filename = filename, state = LDDownloadState.Queued, title = title, params = params)
+    val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = urlStr, filename = filename, title = title, params = params)
+
     val file = this.getFile(filename, "$fileExtension${LDGlobals.LD_TEMP_EXT}")
-    
     if (file == null) {
       ldDownload.state = LDDownloadState.Error("File can't be null")
       updateLDDownload(ldDownload)
@@ -187,6 +210,7 @@ class LookDown(private val context: Context,
     
     flow {
       LDLogger.log("Starting download: $urlStr")
+      ldDownload.state = LDDownloadState.Queued
       emit(ldDownload)
       
       if (file.exists() && tryToResume.orDefault()) {
@@ -230,7 +254,7 @@ class LookDown(private val context: Context,
       }
       
       fileTotalLength = connection.contentLength.toLong() // might be -1: server did not report the length
-      if (tempFileExists) fileTotalLength += file.length()  //if is resumed the server will download only the difference, so we need to add to fileLength which are the bytes already downloaded
+      if (tempFileExists && fileTotalLength>0) fileTotalLength += file.length()  //if is resumed the server will download only the difference, so we need to add to fileLength which are the bytes already downloaded
       
       ldDownload.fileSize = fileTotalLength
       ldDownload.lastModified = connection.getHeaderField("Last-Modified")
@@ -246,14 +270,14 @@ class LookDown(private val context: Context,
       LDLogger.log("Downloading...")
       while (input!!.read(data).also { chunk = it } != -1) {
         downloadedBytes += chunk.toLong()
-        if (fileTotalLength > 0) {
-          ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
-        }
+        ldDownload.downloadedBytes = downloadedBytes
+        if (fileTotalLength > 0)  ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
         // LDLogger.log("Writing ${ldDownload.filename}. Current progress: ${ldDownload.progress}")
         output!!.write(data, 0, chunk)
         emit(ldDownload)
       }
-      LDLogger.log("Is file ${ldDownload.filename} fully downloaded? ${file.length() == fileTotalLength} (Downloaded Bytes: ${file.length()} | File Size: $fileTotalLength)")
+      val resMessage = if(file.length() == fileTotalLength) "SUCCESS" else "INCOMPLETE"
+      LDLogger.log("${ldDownload.filename} download with: $resMessage (Downloaded Bytes: ${file.length()} | File Size: $fileTotalLength | Progress: ${ldDownload.progress})")
     }.catch { e ->
       LDLogger.log("Catch ${e.stackTrace}")
       ldDownload.state = LDDownloadState.Error("Catch: ${e.stackTrace}")
@@ -265,13 +289,16 @@ class LookDown(private val context: Context,
       try {
         output?.close()
         input?.close()
-        if (ldDownload.state == LDDownloadState.Downloaded) TempFileman.removeTempExtension(file, LDGlobals.LD_TEMP_EXT)
+        if (ldDownload.state == LDDownloadState.Downloaded) {
+          LDLogger.log("Removing .tmp extension")
+          Fileman.removeTempExtension(file, LDGlobals.LD_TEMP_EXT)
+        }
       } catch (ignored: IOException) {
       }
       connection.disconnect()
       emit(ldDownload)
     }.flowOn(Dispatchers.IO).collect {
-      updateLDDownload(it)
+      updateLDDownload(it, forceUpdate = ldDownload.state != LDDownloadState.Downloading)  //if it's downloading don't force update
     }
   }
   
@@ -298,7 +325,7 @@ class LookDown(private val context: Context,
   }
   
   /**
-   * Download any file
+   * Download any file without progress feedback
    * Override Download function with LDDownload as parameter
    */
   fun downloadSimple(ldDownload: LDDownload): LDDownload {
@@ -313,8 +340,7 @@ class LookDown(private val context: Context,
   
   
   /**
-   * Download any file
-   * Be aware to avoid calling this method from Main thread
+   * Download any file without progress feedback
    * You can cancel by calling cancelAllDownloads or cancelDownloadByUrl
    *
    * @param urlStr
@@ -340,7 +366,7 @@ class LookDown(private val context: Context,
       return ldDownload
     }
     
-    val file = TempFileman.getFile(context, driver ?: LD_DEFAULT_DRIVER, folder ?: LD_DEFAULT_FOLDER, "$filename$fileExtension${LDGlobals.LD_TEMP_EXT}")
+    val file = Fileman.getFile(context, driver, folder, "$filename$fileExtension${LDGlobals.LD_TEMP_EXT}")
     if (file == null) {
       ldDownload.state = LDDownloadState.Error("File can't be null")
       return ldDownload
@@ -394,7 +420,7 @@ class LookDown(private val context: Context,
       // might be -1: server did not report the length
       var fileTotalLength = connection.contentLength.toLong()
       LDLogger.log("Bytes to download: $fileTotalLength")
-      if (tempFileExists) fileTotalLength += file.length()  //if is resumed, the server will download only the difference, so we need to add to fileLength the bytes already downloaded
+      if (tempFileExists && fileTotalLength > 0) fileTotalLength += file.length()  //if is resumed, the server will download only the difference, so we need to add to fileLength the bytes already downloaded
       LDLogger.log("File Total Size: $fileTotalLength")
       ldDownload.fileSize = fileTotalLength
       
@@ -410,10 +436,12 @@ class LookDown(private val context: Context,
       LDLogger.log("Downloading...")
       while (input.read(data).also { chunk = it } != -1 && downloadJobs[urlStr].orDefault()) {
         downloadedBytes += chunk.toLong()
+        ldDownload.downloadedBytes = downloadedBytes
         if (fileTotalLength > 0) ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
         output.write(data, 0, chunk)
       }
-      LDLogger.log("Is file fully downloaded? ${file.length() == fileTotalLength} (Downloaded Bytes: ${file.length()} | File Size: $fileTotalLength)")
+      val resMessage = if(file.length() == fileTotalLength) "SUCCESS" else "INCOMPLETE"
+      LDLogger.log("${ldDownload.filename} download with: $resMessage (Downloaded Bytes: ${file.length()} | File Size: $fileTotalLength)")
       if (file.length() == fileTotalLength) ldDownload.state = LDDownloadState.Downloaded else ldDownload.state = LDDownloadState.Incomplete
     } catch (e: Exception) {
       LDLogger.log("Catch ${e.stackTrace}")
@@ -425,7 +453,7 @@ class LookDown(private val context: Context,
         input?.close()
         if (ldDownload.state == LDDownloadState.Downloaded) {
           LDLogger.log("Removing .tmp extension")
-          TempFileman.removeTempExtension(file, LDGlobals.LD_TEMP_EXT)
+          Fileman.removeTempExtension(file, LDGlobals.LD_TEMP_EXT)
         }
         downloadJobs.remove(urlStr)
       } catch (ignored: IOException) {

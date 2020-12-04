@@ -25,6 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 //Transformations: https://proandroiddev.com/livedata-transformations-4f120ac046fc
 
+
+
 @ExperimentalCoroutinesApi
 class DownloadViewModel @ViewModelInject constructor(
   @ApplicationContext val context: Context,
@@ -38,7 +40,7 @@ class DownloadViewModel @ViewModelInject constructor(
     val folder = LDGlobals.LD_DEFAULT_FOLDER
   }
   
-  private lateinit var lookDown : LookDown
+  private var lookDown : LookDown
   
   init {
     // *** THE SIMPLEST way to use LookDown ***
@@ -55,13 +57,16 @@ class DownloadViewModel @ViewModelInject constructor(
       setForceResume(true)
       setTimeout(5000)
       setConnectTimeout(5000)
+      setProgressRenderDelay(500L)  //Avoid RecyclerView blinking
       // setHeaders()
     }
     lookDown = builder.build()
+    LookDown.activateLogs()
+    LookDown.setLogTag("LookDown")
   }
   
   
-  private val delayTime = 1000L
+  private val workDelay = 1000L
   
   //Simulating download
   private var _workProgress = MutableLiveData<Event<LDDownload>>()
@@ -71,11 +76,14 @@ class DownloadViewModel @ViewModelInject constructor(
   private var _schema = MutableStateFlow<ExecutorSchema>(ExecutorSchema.Queue)
   var schema: StateFlow<ExecutorSchema> = _schema
   
-  private var _list = MutableLiveData<Event<List<LDDownload>>>()
-  var list: LiveData<Event<List<LDDownload>>> = _list
+  private var _list = MutableLiveData<Event<MutableList<LDDownload>>>()
+  var list: LiveData<Event<MutableList<LDDownload>>> = _list
   
+
   //LookDown LiveData
-  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveData) { Event(it) }
+  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveData) {
+    Event(it)
+  }
   
   //Turn around for Conflate
   private var workingJobList: MutableMap<String, Triple<ExecutorSchema, Job, LDDownload>> = mutableMapOf()
@@ -141,6 +149,7 @@ class DownloadViewModel @ViewModelInject constructor(
   @InternalCoroutinesApi
   fun startDownload(download: LDDownload, position:Int){
     baseCoroutineScope.launch {
+      //force QUEUE state to avoid collision and Update UI.
       download.state = LDDownloadState.Queued
       download.params = mutableMapOf(Pair(KEY_POSITION, position.toString()))
       lookDown.updateLDDownload(download)
@@ -182,14 +191,13 @@ class DownloadViewModel @ViewModelInject constructor(
   @InternalCoroutinesApi
   private suspend fun downloadFile(ldDownload: LDDownload){
     if(ldDownload.validateInfoForDownloading()){
-      ldDownload.state = LDDownloadState.Downloading
-      lookDown.updateLDDownload(ldDownload)
-      
       //With Flow (Better way)
       lookDown.download(ldDownload) //passing ldDownload or passing everything
       // lookDown.download( ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!, ldDownload.id, ldDownload.title, ldDownload.params)
       
-      //With Simple Way (No need to suspend)
+      //With Simple Way (No need to suspend but without progress and State events)
+      // ldDownload.state = LDDownloadState.Downloading
+      // lookDown.updateLDDownload(ldDownload)
       // lookDown.downloadSimple(ldDownload)
       // lookDown.downloadSimple(ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!)
     }else{
@@ -201,16 +209,16 @@ class DownloadViewModel @ViewModelInject constructor(
   
   private suspend fun simulateWorkProgress(download: LDDownload) {
     download.state = LDDownloadState.Downloading
-    updateDownloadInfo(download)
+    updateWorkProgress(download)
     for (i in download.progress..100 step 10) {
       download.updateProgress(i)
       AppLogger.log("Downloading ${download.title} with progress ${download.progress}...")
-      updateDownloadInfo(download)
-      delay(delayTime)
+      updateWorkProgress(download)
+      delay(workDelay)
     }
   }
   
-  private suspend fun updateDownloadInfo(download: LDDownload) {
+  private suspend fun updateWorkProgress(download: LDDownload) {
     withContext(Dispatchers.Main) {
       _workProgress.value = Event(download)
     }

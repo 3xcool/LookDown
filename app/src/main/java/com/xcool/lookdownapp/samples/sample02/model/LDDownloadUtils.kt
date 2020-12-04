@@ -14,8 +14,8 @@ import java.lang.Exception
  */
 object LDDownloadUtils {
   
-  // private val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"  //todo 10000 check when server don't pass file length
-  private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"
+  private val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"
+  // private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"
   
   fun getFileIfExists(context:Context, driver:Int?, folder:String?, filename:String, fileExtension:String): File? {
     return LookDownLite.getFile(context, driver ?: LDGlobals.LD_DEFAULT_DRIVER, folder?: LDGlobals.LD_DEFAULT_FOLDER, filename, fileExtension)

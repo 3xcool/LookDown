@@ -20,7 +20,9 @@ import kotlinx.coroutines.*
 
 /**
  * @author André Filgueiras on 28/11/2020
+ *
  */
+
 class Sample01ViewModel @ViewModelInject constructor(
   @ApplicationContext val context: Context,
   private val executor: Executor,
@@ -74,7 +76,7 @@ class Sample01ViewModel @ViewModelInject constructor(
     baseCoroutineScope.launch {
       _loading.value = true
       withContext(Dispatchers.IO){
-        val res = LookDownLite.deleteFile(context, LDGlobals.LD_DEFAULT_DRIVER, LDGlobals.LD_DEFAULT_FOLDER, filename, extension)
+        val res = LookDownLite.deleteFile(context, LD_DEFAULT_DRIVER, LD_DEFAULT_FOLDER, filename, extension)
         // val res = LookDownUtil.deleteFile(context, LDConstants.LD_DEFAULT_DRIVER, LDConstants.LD_DEFAULT_FOLDER, filename, extension+LDConstants.LD_TEMP_EXT) //for temporary file
         withContext(Dispatchers.Main) {
           if(res.orDefault()){

@@ -58,6 +58,7 @@ data class LDDownload(
   
   fun updateProgress(progress:Int){
     this.progress = progress
+    if(progress == 0) this.downloadedBytes = 0
     this.state = getCurrentDownloadState(true)
   }
   

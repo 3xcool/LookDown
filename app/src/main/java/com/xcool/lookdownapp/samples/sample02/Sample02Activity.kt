@@ -81,6 +81,7 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
       adapter = downAdapter
       layoutManager = LinearLayoutManager(context)
       // addOnScrollListener(this@ActivityDownload.scrollListener)
+      // setHasFixedSize(true)
     }
     // downAdapter.differ.submitList(Download.buildFakeDownloadList())
     // downAdapter.downloadList = LDDownloadUtils.buildFakeLDDownloadList()
@@ -145,22 +146,23 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   private fun subscribeObservers() {
     viewModel.list.observe(this, { event ->
       event.getContentIfNotHandled().let { list ->
-        list?.let { downAdapter.downloadList = it }
+        list?.let { downAdapter.updateDownloadList(it)}
       }
     })
   
     viewModel.workProgress.observe(this, { event ->
       event.getContentIfNotHandled().let { download ->
-        download?.let { downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+        download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
       }
     })
   
     viewModel.ldDownloadFlow.observe(this, { event ->
       event.getContentIfNotHandled().let { download ->
-        download?.let { downAdapter.updateDownloadProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+        AppLogger.log("Trigger render received ldDownload")
+        download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
       }
     })
-  
+    
   
     // lifecycleScope.launchWhenStarted {
     //   viewModel.schema.collect {schema->
