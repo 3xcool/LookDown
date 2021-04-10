@@ -2,54 +2,69 @@ plugins {
     id 'com.android.library'
     id 'kotlin-android'
 
-    id 'com.github.dcendents.android-maven'
-    id 'com.jfrog.bintray'
 }
+
+apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
 
 def versionMajor = 1
 def versionMinor = 0
 def versionPatch = 0
 
+def localProperties = new Properties()
+localProperties.load(project.rootProject.file('mylocal.properties').newDataInputStream())
+
+//Maven Central
 ext {
-    bintrayRepo = 'maven' // Name of the Bintray repo you created
-    bintrayName = 'com.3xcool.utility:LookDown' // Bintray package name
+    PUBLISH_GROUP_ID = 'com.3xcool'
+    PUBLISH_VERSION = "${versionMajor}.${versionMinor}.${versionPatch}"
+    PUBLISH_ARTIFACT_ID = 'lookdown'
 
-    publishedGroupId = 'com.3xcool.utility' // Group ID of the SDK which will be added in implementation line of gradle
-    artifact = 'lookdown' // Artifact ID of the SDK which will be added in implementation line of gradle
-    libraryVersion = '1.0.0' //versionMajor * 10000 + versionMinor * 100 + versionPatch  // Version of the library you created in Bintray
+    repoName = 'sonatype'
 
-    libraryName = 'LookDown' // It is generally the module name
-    libraryDescription = 'Auxiliar library to Download any File' // Small description of the library
+    libraryDescription = 'Download Manager using Coroutine (Queue, Conflate and Concurrent), Flow and Fileman with Cancel and Resume'
+    libraryUrl = 'https://github.com/3xcool/LookDown'
 
-    siteUrl = 'https://github.com/3xcool/lookdown'
-    gitUrl = 'https://github.com/3xcool/lookdown'
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
 
     developerId = '3xcool'
     developerName = 'Andre Filgueiras'
     developerEmail = 'alg.filgueiras@gmail.com'
 
-    licenseName = 'The Apache Software License, Version 2.0'
-    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-    allLicenses = ["Apache-2.0"]
-
-    //Bintray Credentials
-    Properties properties = new Properties()
-    properties.load(project.rootProject.file('mylocal.properties').newDataInputStream())
-
-    bintrayUsername = properties.getProperty('BINTRAY_USERNAME')
-    bintrayUserOrg = properties.getProperty('BINTRAY_ORG')
-    bintrayApiKey = properties.getProperty('BINTRAY_API_KEY')
+    gitConnection = 'scm:git:github.com/3xcool/LookDown.git'
+    developerConnection = 'scm:git:ssh://github.com/3xcool/LookDown.git'
+    scmUrl = 'https://github.com/3xcool/LookDown'
 }
+
 
 android {
     compileSdkVersion 30
     buildToolsVersion "30.0.2"
 
+    signingConfigs {
+        release {
+            storeFile rootProject.file('filgs_key.keystore')
+            storePassword localProperties.getProperty("signing.password")
+            keyAlias localProperties.getProperty("signing.keyAlias")
+            keyPassword localProperties.getProperty("signing.password")
+        }
+
+        debug {
+            storeFile rootProject.file('filgs_key.keystore')
+            storePassword localProperties.getProperty("signing.password")
+            keyAlias localProperties.getProperty("signing.keyAlias")
+            keyPassword localProperties.getProperty("signing.password")
+        }
+    }
+
     defaultConfig {
-        minSdkVersion 19
-        targetSdkVersion 30
-        versionCode 1
-        versionName "1.0"
+        minSdkVersion rootProject.minSdkVersion
+        targetSdkVersion rootProject.targetSdkVersion
+        versionCode versionMajor * 10000 + versionMinor * 100 + versionPatch
+        versionName "${versionMajor}.${versionMinor}.${versionPatch}"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -94,4 +109,22 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }
 
-apply from: 'bintray.script'
+task deleteJar(type: Delete) {
+    delete 'libs/jars/lookdown.jar'
+}
+
+//tutorial to create jar: https://stackoverflow.com/questions/21712714/how-to-make-a-jar-out-from-an-android-studio-project
+task createJar(type: Copy) {
+//    from('build/intermediates/bundles/release/') //don't work
+    from('build/intermediates/packaged-classes/release/')
+    into('libs/jars/')
+    include('classes.jar')
+    rename('classes.jar', 'lookdown.jar')
+}
+
+createJar.dependsOn(deleteJar, build)
+
+
+//apply from: 'bintray.script'
+//apply from: "${rootProject.projectDir}/publish-mavencentral.gradle"
+apply from: "publish-mavencentral.gradle"

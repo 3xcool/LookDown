@@ -1,0 +1,125 @@
+//https://getstream.io/blog/publishing-libraries-to-mavencentral-2021/
+
+task androidSourcesJar(type: Jar) {
+    archiveClassifier.set('sources')
+    if (project.plugins.findPlugin("com.android.library")) {
+        // For Android libraries
+        from android.sourceSets.main.java.srcDirs
+        from android.sourceSets.main.kotlin.srcDirs
+    } else {
+        // For pure Kotlin libraries, in case you have them
+        from sourceSets.main.java.srcDirs
+        from sourceSets.main.kotlin.srcDirs
+    }
+}
+
+artifacts {
+    archives androidSourcesJar
+}
+
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+group = PUBLISH_GROUP_ID
+version = PUBLISH_VERSION
+
+
+File secretPropsFile = project.rootProject.file('mylocal.properties')
+if (secretPropsFile.exists()) {
+    Properties p = new Properties()
+    p.load(new FileInputStream(secretPropsFile))
+    p.each { name, value ->
+//        println "name: ${name} and value: ${value}"
+        ext[name] = value
+    }
+} else {
+    println "No props file, check env vars"
+}
+
+//https://help.sonatype.com/integrations/nexus-and-continuous-integration/nexus-platform-plugin-for-jenkins
+//nexusStaging {
+//    packageGroup = PUBLISH_GROUP_ID
+//    stagingProfileId = sonatypeStagingProfileId
+//    username = ossrhUsername
+//    password = ossrhPassword
+//}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            groupId PUBLISH_GROUP_ID
+            artifactId PUBLISH_ARTIFACT_ID
+            version PUBLISH_VERSION
+
+            // Two artifacts, the `aar` (or `jar`) and the sources
+            if (project.plugins.findPlugin("com.android.library")) {
+                artifact("$buildDir/outputs/aar/${project.getName()}-release.aar")
+            } else {
+                artifact("$buildDir/libs/${project.getName()}-${version}.jar")
+            }
+
+//            artifact androidSourcesJar  //to upload JAR as well
+
+
+            //https://medium.com/android-news/releasing-multi-module-android-library-in-gradle-7286cd667b4b
+            pom {
+                println "developerConnection: ${developerConnection} "
+                packaging 'aar'
+                name = PUBLISH_ARTIFACT_ID
+                description = libraryDescription
+                url = libraryUrl
+                licenses {
+                    license {
+                        name = licenseName
+                        url = licenseUrl
+                    }
+                }
+                developers {
+                    developer {
+                        id = developerId
+                        name = developerName
+                        email = developerEmail
+                    }
+                }
+                scm {
+                    connection = gitConnection// 'scm:git:github.com/3xcool/showmelite.git'
+                    developerConnection = gitConnection //'scm:git:ssh://github.com/3xcool/showmelite.git'
+                    url = scmUrl
+                }
+                withXml {
+                    def dependenciesNode = asNode().appendNode('dependencies')
+
+                    project.configurations.implementation.allDependencies.each {
+                        def dependencyNode = dependenciesNode.appendNode('dependency')
+                        dependencyNode.appendNode('groupId', it.group)
+                        dependencyNode.appendNode('artifactId', it.name)
+                        dependencyNode.appendNode('version', it.version)
+                    }
+                }
+            }
+
+        }
+    }
+
+    // The repository to publish to, Sonatype/MavenCentral
+    repositories {
+        maven {
+            // This is an arbitrary name, you may also use "mavencentral" or
+            // any other name that's descriptive for you
+            name = "sonatype"
+
+            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+            credentials {
+                username ossrhUsername
+                password ossrhPassword
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications
+}
