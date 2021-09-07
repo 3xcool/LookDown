@@ -5,7 +5,7 @@
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:padding="@dimen/act_padding"
-  tools:context=".samples.sample01.Sample01Activity">
+  tools:context="com.andrefilgs.lookdownapp.samples.sample01.Sample01Activity">
   
   <LinearLayout
     android:id="@+id/ll_chunksize"

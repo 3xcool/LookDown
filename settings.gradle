@@ -1,3 +1,4 @@
-include ':lookdown'
+include ':lookdown_android'
 include ':app'
 rootProject.name = "LookDown"
+include ':lookdown'

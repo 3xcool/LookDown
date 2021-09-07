@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-  package="com.xcool.lookdownapp">
+  package="com.andrefilgs.lookdownapp">
   
   <uses-permission android:name="android.permission.INTERNET"/>
   
   <application
-    android:name=".app.MyApp"
+    android:name="com.andrefilgs.lookdownapp.app.MyApp"
     android:allowBackup="true"
     android:icon="@mipmap/ic_launcher"
     android:label="@string/app_name"
     android:roundIcon="@mipmap/ic_launcher_round"
     android:supportsRtl="true"
     android:theme="@style/Theme.LookDown">
-    <activity android:name=".samples.sample02.Sample02Activity" />
-    <activity android:name=".samples.sample01.Sample01Activity" />
-    <activity android:name=".MainActivity">
+    <activity android:name="com.andrefilgs.lookdownapp.samples.sample02.Sample02Activity" />
+    <activity android:name="com.andrefilgs.lookdownapp.samples.sample01.Sample01Activity" />
+    <activity android:name="com.andrefilgs.lookdownapp.MainActivity">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         
