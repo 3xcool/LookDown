@@ -49,12 +49,8 @@ class Sample01Activity : AppCompatActivity() {
     viewModel.feedback.observe(this, {message->
       Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     })
-  
-    viewModel.ldDownload.observe(this, { ldDownload ->
-      renderScreen(ldDownload)
-    })
     
-    viewModel.ldDownloadFlow.observe(this, { ldDownload ->
+    viewModel.ldDownload.observe(this, { ldDownload ->
       renderScreen(ldDownload)
     })
   }
@@ -88,11 +84,11 @@ class Sample01Activity : AppCompatActivity() {
     }
     
     binding.btnDelete.setOnClickListener {
-      viewModel.deleteFile(this)
+      viewModel.deleteFile()
     }
     
     binding.btnCancel.setOnClickListener {
-      viewModel.stopAllDownloads(binding.switchShowProgress.isChecked)
+      viewModel.stopDownload()
     }
     
     binding.btnDownload.setOnClickListener {
@@ -109,16 +105,8 @@ class Sample01Activity : AppCompatActivity() {
   private fun startDownload(withResume:Boolean){
     start = System.currentTimeMillis()
     AppLogger.log("Start download")
-  
-    if(binding.switchShowProgress.isChecked){
-      binding.tvOutput.text = ""
-      viewModel.downloadWithFlow(this, takeatour, withResume)
-    }else{
-      binding.tvOutput.text = ""
-      binding.progressbarDownload.progress = 0
-      binding.tvProgress.text = "Downloading..."
-      viewModel.download(this, takeatour, withResume)
-    }
+    binding.tvOutput.text = ""
+    viewModel.downloadWithFlow(takeatour, withResume)
   }
   
   private fun finishDownload(){

@@ -1,10 +1,11 @@
 package com.andrefilgs.lookdownapp.samples.sample02.model
 
 import android.content.Context
+import com.andrefilgs.fileman.Fileman
 import com.andrefilgs.lookdown_android.LDGlobals
-import com.andrefilgs.lookdown_android.LookDownLite
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
+import com.andrefilgs.lookdownapp.app.AppLogger
 import java.io.File
 import java.lang.Exception
 
@@ -14,8 +15,8 @@ import java.lang.Exception
  */
 object LDDownloadUtils {
   
-  fun getFileIfExists(context:Context, driver:Int?, folder:String?, filename:String, fileExtension:String): File? {
-    return LookDownLite.getFile(context, driver ?: LDGlobals.LD_DEFAULT_DRIVER, folder?: LDGlobals.LD_DEFAULT_FOLDER, filename, fileExtension)
+  private fun getFileIfExists(context: Context, driver: Int?, folder: String?, filename: String, fileExtension: String): File? {
+    return Fileman.getFile(context, driver ?: LDGlobals.LD_DEFAULT_DRIVER, folder ?: LDGlobals.LD_DEFAULT_FOLDER, filename + fileExtension)
   }
   
   fun checkFileExists(context:Context, driver: Int, folder: String?, list:MutableList<LDDownload>):MutableList<LDDownload>{
@@ -34,7 +35,7 @@ object LDDownloadUtils {
           }
         }
       }catch (e:Exception){
-      
+        AppLogger.log("Catch: ${e.printStackTrace()}")
       }
     }
     return list

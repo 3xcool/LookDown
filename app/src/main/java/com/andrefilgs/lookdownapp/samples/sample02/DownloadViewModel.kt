@@ -28,8 +28,7 @@ import javax.inject.Inject
 @ExperimentalCoroutinesApi
 @HiltViewModel
 class DownloadViewModel @Inject constructor(
-  // @ApplicationContext val context: Context,
-  val lookDown: LookDown,
+  private val lookDown: LookDown,
   executor: Executor,
   ): BaseViewModel(executor) {
   
@@ -39,38 +38,9 @@ class DownloadViewModel @Inject constructor(
     val folder = LDGlobals.LD_DEFAULT_FOLDER
   }
   
-  // private var lookDown : LookDown
-  
-  init {
-    // *** THE SIMPLEST way to use LookDown ***
-    // val lookDown = LookDown.Builder(context).build() //For default values
-    // val file = LDDownload(url = "", filename = "")
-    // lookDown.download(file)
-    
-    // val builder = LookDown.Builder(context)
-    // builder.apply {
-    //   setChunkSize(4096)
-    //   setFileExtension(LDGlobals.LD_VIDEO_MP4_EXT)
-    //   setDriver(1) //0 = Sandbox (Where the app is installed), 1 = Internal (Phone), 2 = SD Card
-    //   setFolder(LDGlobals.LD_DEFAULT_FOLDER)
-    //   setForceResume(true)
-    //   setTimeout(5000)
-    //   setConnectTimeout(5000)
-    //   setProgressRenderDelay(500L)  //Avoid RecyclerView blinking
-    //   // setHeaders()
-    // }
-    // lookDown = builder.build()
-    
-    LookDown.activateLogs()
-    LookDown.setLogTag("LookDown")
-  }
   
   
   private val workDelay = 1000L
-  
-  //Simulating download
-  private var _workProgress = MutableLiveData<Event<LDDownload>>()
-  var workProgress: LiveData<Event<LDDownload>> = _workProgress
   
   //Executor schema
   private var _schema = MutableStateFlow<ExecutorSchema>(ExecutorSchema.Queue)
@@ -81,7 +51,7 @@ class DownloadViewModel @Inject constructor(
   
 
   //LookDown LiveData
-  val ldDownloadFlow: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveData) {
+  val ldDownload: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveData) {
     Event(it)
   }
   
@@ -157,7 +127,6 @@ class DownloadViewModel @Inject constructor(
       val job = launch(schema.value) {
         withContext(Dispatchers.IO) {
           AppLogger.log("Start download file ${download.title} with progress ${download.progress}")
-          // simulateWorkProgress(download)
           downloadFile(download)
           AppLogger.log("Finished download file ${download.title} with progress ${download.progress}")
         }
@@ -191,36 +160,10 @@ class DownloadViewModel @Inject constructor(
   @InternalCoroutinesApi
   private suspend fun downloadFile(ldDownload: LDDownload){
     if(ldDownload.validateInfoForDownloading()){
-      //With Flow (Better way)
-      lookDown.download(ldDownload) //passing ldDownload or passing everything
-      // lookDown.download( ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!, ldDownload.id, ldDownload.title, ldDownload.params)
-      
-      //With Simple Way (No need to suspend but without progress and State events)
-      // ldDownload.state = LDDownloadState.Downloading
-      // lookDown.updateLDDownload(ldDownload)
-      // lookDown.downloadSimple(ldDownload)
-      // lookDown.downloadSimple(ldDownload.url!!, ldDownload.filename!!, ldDownload.fileExtension!!)
+      lookDown.download(ldDownload)
     }else{
       ldDownload.state = LDDownloadState.Error("Missing download info")
       lookDown.updateLDDownload(ldDownload)
-    }
-  }
-  
-  
-  private suspend fun simulateWorkProgress(download: LDDownload) {
-    download.state = LDDownloadState.Downloading
-    updateWorkProgress(download)
-    for (i in download.progress..100 step 10) {
-      download.updateProgress(i)
-      AppLogger.log("Downloading ${download.title} with progress ${download.progress}...")
-      updateWorkProgress(download)
-      delay(workDelay)
-    }
-  }
-  
-  private suspend fun updateWorkProgress(download: LDDownload) {
-    withContext(Dispatchers.Main) {
-      _workProgress.value = Event(download)
     }
   }
   
