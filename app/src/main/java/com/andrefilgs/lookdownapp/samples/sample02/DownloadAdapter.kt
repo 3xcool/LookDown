@@ -2,6 +2,8 @@ package com.andrefilgs.lookdownapp.samples.sample02
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.recyclerview.widget.AsyncListDiffer
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.andrefilgs.lookdown_android.domain.LDDownload
@@ -17,24 +19,7 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
   
   inner class DownloadViewHolder(val binding: ItemDownloadBinding): RecyclerView.ViewHolder(binding.root)
   
-  // private val differCallback = object : DiffUtil.ItemCallback<LDDownload>() {
-  //   override fun areItemsTheSame(oldItem: LDDownload, newItem: LDDownload): Boolean {
-  //     return oldItem.id == newItem.id
-  //   }
-  //
-  //   override fun areContentsTheSame(oldItem: LDDownload, newItem: LDDownload): Boolean {
-  //     // return oldItem.id == newItem.id && oldItem.url == newItem.url
-  //     return oldItem == newItem
-  //   }
-  // }
-  //
-  // val differ = AsyncListDiffer(this, differCallback)
-  //
-  // var downloadList: List<LDDownload>
-  //   get() = differ.currentList
-  //   set(value) = differ.submitList(value)
-  
-  var downloadList: MutableList<LDDownload> = mutableListOf()
+  private var downloadList: MutableList<LDDownload> = mutableListOf()
   
   fun updateDownloadList(list:MutableList<LDDownload>){
     this.downloadList.clear()
@@ -74,7 +59,6 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
   
   override fun onBindViewHolder(holder: DownloadViewHolder, position: Int) {
     val download = downloadList[position]
-    // val download = downloadList[position]
     
     with(holder){
       Glide.with(binding.root).load(download.getDownloadStateImage()).into(binding.itemDownIvAction)

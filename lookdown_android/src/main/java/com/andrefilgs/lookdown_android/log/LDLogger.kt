@@ -1,18 +1,20 @@
 package com.andrefilgs.lookdown_android.log
 
 import android.util.Log
+import com.andrefilgs.lookdown_android.LDGlobals.LD_LOG_TAG
 
 
 /**
  * @author André Filgueiras on 30/11/2020
  */
-internal object LDLogger {
-  var showLogs = false
-  var ldTag = "LookDown"
+internal class LDLogger(
+  var showLogs :Boolean = false,
+  var tag :String= LD_LOG_TAG
+){
   
   fun log(msg:String){
     if(showLogs){
-      Log.d(ldTag, msg)
+      Log.d(tag, msg)
     }
   }
 }

@@ -8,6 +8,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import javax.inject.Singleton
 
 @Module
@@ -15,6 +16,7 @@ import javax.inject.Singleton
 object LookDownModule {
   
   
+  @ExperimentalCoroutinesApi
   @Provides
   @Singleton
   fun providesLookDownBuilder(@ApplicationContext context:Context): LookDown.Builder {
@@ -28,7 +30,8 @@ object LookDownModule {
       setTimeout(5000)
       setConnectTimeout(5000)
       setProgressRenderDelay(500L)
-      // setHeaders()
+      setLogTag("LookDown")
+      activateLogs()
     }
   }
   

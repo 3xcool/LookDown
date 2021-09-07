@@ -5,4 +5,10 @@
   <string name="download_sample">Download Sample</string>
   <string name="stop_all">Stop All</string>
   <string name="download_icon">Download icon</string>
+  <string name="chunk_size">Chunk Size</string>
+  <string name="minus">-</string>
+  <string name="plus">+</string>
+  <string name="delete">Delete</string>
+  <string name="cancel">Cancel</string>
+  <string name="resume">Resume</string>
 </resources>

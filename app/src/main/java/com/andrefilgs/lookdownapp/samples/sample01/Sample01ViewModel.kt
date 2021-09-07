@@ -5,7 +5,7 @@ import androidx.lifecycle.*
 import com.xcool.coroexecutor.core.Executor
 import com.andrefilgs.lookdown_android.LDGlobals.LD_DEFAULT_DRIVER
 import com.andrefilgs.lookdown_android.LDGlobals.LD_DEFAULT_FOLDER
-import com.andrefilgs.lookdown_android.LookDownLite
+import com.andrefilgs.lookdown_android.LookDown
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdownapp.app.AppLogger
@@ -23,7 +23,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class Sample01ViewModel @Inject constructor(
-  private val executor: Executor,
+  private val lookDown: LookDown,
+  executor: Executor,
   ): BaseViewModel(executor) {
   
   private val filename = "takeatour"
@@ -37,48 +38,49 @@ class Sample01ViewModel @Inject constructor(
   private val _feedback : MutableLiveData<String> = MutableLiveData()
   val feedback : LiveData<String> = _feedback
   
-  val ldDownload: MutableLiveData<LDDownload> = MutableLiveData()  //simple one
   
-  val ldDownloadFlow: LiveData<LDDownload> = Transformations.map(LookDownLite.ldDownloadLiveData) { it }
+  val ldDownload: LiveData<LDDownload> = Transformations.map(lookDown.ldDownloadLiveData) { it }
   
   var jobsList :MutableMap<String, Job> = mutableMapOf()
   
-  fun setChunkSize(chunkSize:Int){
-    LookDownLite.chunkSize = chunkSize
+  
+  init {
+    lookDown.apply {
+      setDriver(driver)
+      setFolder(folder)
+      setFileExtension(extension)
+      activateLogs()
+    }
   }
   
-  fun stopAllDownloads(checked: Boolean) {
+  
+  fun setChunkSize(chunkSize:Int){
+    lookDown.setChunkSize(chunkSize)
+  }
+  
+  fun stopDownload() {
     baseCoroutineScope.launch {
       for((key, value) in jobsList){
         AppLogger.log("Cancelling $key")
         value.cancel()
-        if(checked){
-          ldDownloadFlow.value?.let{
-            it.setStateAfterDownloadStops()
-            LookDownLite.updateLDDownload(it)
-          }
-        }else{
-          LookDownLite.cancelAllDownloads()  //using this work around to cancel
-          ldDownload.value?.let{
-            it.setStateAfterDownloadStops()
-            ldDownload.value = it
-          }
+        ldDownload.value?.let{
+          it.setStateAfterDownloadStops()
+          lookDown.updateLDDownload(it)
         }
       }
       jobsList.clear()
     }
   }
   
-  fun deleteFile(context:Context){
+  fun deleteFile(){
     baseCoroutineScope.launch {
       _loading.value = true
       withContext(Dispatchers.IO){
-        val res = LookDownLite.deleteFile(context, LD_DEFAULT_DRIVER, LD_DEFAULT_FOLDER, filename, extension)
-        // val res = LookDownUtil.deleteFile(context, LDConstants.LD_DEFAULT_DRIVER, LDConstants.LD_DEFAULT_FOLDER, filename, extension+LDConstants.LD_TEMP_EXT) //for temporary file
+        val res = lookDown.deleteFile(filename = filename, driver= LD_DEFAULT_DRIVER, folder= LD_DEFAULT_FOLDER, fileExtension= extension)
         withContext(Dispatchers.Main) {
           if(res.orDefault()){
             _feedback.value = "File deleted"
-            ldDownload.value = LDDownload(progress = 0, state= LDDownloadState.Empty)
+            lookDown.updateLDDownload(LDDownload(progress = 0, state= LDDownloadState.Empty))
           }else{
             _feedback.value = "File not deleted"
           }
@@ -89,24 +91,12 @@ class Sample01ViewModel @Inject constructor(
   }
   
   
-  fun download(context:Context, url:String, withResume:Boolean){
-    val job = baseCoroutineScope.launch(Dispatchers.IO) {
-      withContext(Dispatchers.Main){ _loading.value = true}
-      val res = LookDownLite.downloadSimple(context, url, filename, extension, driver, folder, withResume)
-      withContext(Dispatchers.Main) {
-        ldDownload.value = res
-        _loading.value = false
-      }
-    }
-    jobsList[filename] = job
-  }
-  
-  
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
-  fun downloadWithFlow(context:Context, url:String, withResume:Boolean){
+  fun downloadWithFlow(url:String, resume:Boolean){
     val job = baseCoroutineScope.launch(Dispatchers.IO) {
-      LookDownLite.download(context, url, filename, extension, null, driver, folder, withResume)
+      // LookDownLite.download(context, url, filename, extension, null, driver, folder, resume)
+      lookDown.download(url= url, filename, extension, resume=resume)
     }
     jobsList[filename] = job
   }

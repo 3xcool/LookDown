@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.xcool.coroexecutor.core.ExecutorSchema
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
+import com.andrefilgs.lookdownapp.R
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.databinding.ActivitySample02Binding
 import dagger.hilt.android.AndroidEntryPoint
@@ -19,7 +20,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.InternalCoroutinesApi
 
 @AndroidEntryPoint
-class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener, DownloadAdapter.DownloadListener {
+class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterView.OnItemSelectedListener, DownloadAdapter.DownloadListener {
   
   private var _binding: ActivitySample02Binding? = null
   private val binding get() = _binding!!
@@ -38,7 +39,6 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   @InternalCoroutinesApi
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    // setContentView(R.layout.activity_sample02)
     _binding = ActivitySample02Binding.inflate(layoutInflater)
     setContentView(binding.root)
     
@@ -80,11 +80,7 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
     binding.downloadRecyclerDownloads.apply {
       adapter = downAdapter
       layoutManager = LinearLayoutManager(context)
-      // addOnScrollListener(this@ActivityDownload.scrollListener)
-      // setHasFixedSize(true)
     }
-    // downAdapter.differ.submitList(Download.buildFakeDownloadList())
-    // downAdapter.downloadList = LDDownloadUtils.buildFakeLDDownloadList()
     viewModel.buildList(this)
   }
   
@@ -113,7 +109,6 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
   
   @ExperimentalCoroutinesApi
   override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, p3: Long) {
-    //    val item = parent!!.getItemAtPosition(position).toString()
     val executorClass  = ExecutorSchema::class.sealedSubclasses.filter {
       it.isFinal && it.simpleName == executorTypeNameList[position]
     }
@@ -150,25 +145,12 @@ class Sample02Activity : AppCompatActivity(), AdapterView.OnItemSelectedListener
       }
     })
   
-    viewModel.workProgress.observe(this, { event ->
-      event.getContentIfNotHandled().let { download ->
-        download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
-      }
-    })
-  
-    viewModel.ldDownloadFlow.observe(this, { event ->
+    viewModel.ldDownload.observe(this, { event ->
       event.getContentIfNotHandled().let { download ->
         AppLogger.log("Trigger render received ldDownload")
         download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
       }
     })
-    
-  
-    // lifecycleScope.launchWhenStarted {
-    //   viewModel.schema.collect {schema->
-    //       toaster("Schema is ${schema::class.java.simpleName}")
-    //     }
-    // }
   }
   
   
