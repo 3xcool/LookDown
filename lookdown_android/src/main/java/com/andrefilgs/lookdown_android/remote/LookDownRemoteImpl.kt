@@ -84,11 +84,15 @@ internal class LookDownRemoteImpl(
     return flow {
       kotlin.runCatching {
         ldDownload.state = LDDownloadState.Downloading
+        emit(ldDownload)
         logger.log("Downloading...")
         while (input!!.read(data).also { chunk = it } != -1) {
           downloadedBytes += chunk.toLong()
           ldDownload.downloadedBytes = downloadedBytes
-          if (fileTotalLength > 0)  ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
+          if (fileTotalLength > 0)  {
+            // ldDownload.progress = (downloadedBytes * 100 / fileTotalLength).toInt()
+            ldDownload.updateProgress((downloadedBytes * 100 / fileTotalLength).toInt())
+          }
           // logger.log("Writing ${ldDownload.filename}. Current progress: ${ldDownload.progress}")
           output.write(data, 0, chunk)
           emit(ldDownload)

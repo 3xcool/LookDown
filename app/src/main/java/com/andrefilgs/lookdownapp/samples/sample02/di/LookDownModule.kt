@@ -1,6 +1,7 @@
 package com.andrefilgs.lookdownapp.samples.sample02.di
 
 import android.content.Context
+import androidx.lifecycle.LifecycleOwner
 import com.andrefilgs.lookdown_android.LDGlobals
 import com.andrefilgs.lookdown_android.LookDown
 import dagger.Module
@@ -14,6 +15,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object LookDownModule {
+  
   
   
   @ExperimentalCoroutinesApi
@@ -31,6 +33,7 @@ object LookDownModule {
       setConnectTimeout(5000)
       setProgressRenderDelay(500L)
       setLogTag("LookDown")
+      // setWithService(true) //todo 1000
       activateLogs()
     }
   }

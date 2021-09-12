@@ -1,8 +1,10 @@
 package com.andrefilgs.lookdown_android
 
 import android.content.Context
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.*
+import androidx.lifecycle.Observer
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.andrefilgs.fileman.Fileman
 import com.andrefilgs.lookdown_android.LDGlobals.LD_CHUNK_SIZE
 import com.andrefilgs.lookdown_android.LDGlobals.LD_CONNECT_TIMEOUT
@@ -11,7 +13,7 @@ import com.andrefilgs.lookdown_android.LDGlobals.LD_DEFAULT_FOLDER
 import com.andrefilgs.lookdown_android.LDGlobals.LD_LOG_TAG
 import com.andrefilgs.lookdown_android.LDGlobals.LD_PROGRESS_RENDER_DELAY
 import com.andrefilgs.lookdown_android.LDGlobals.LD_TIMEOUT
-// import com.andrefilgs.lookdown_android.log.LDLogger
+import com.andrefilgs.lookdown_android.LDGlobals.LD_WITH_SERVICE // import com.andrefilgs.lookdown_android.log.LDLogger
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.log.LDLogger
@@ -19,10 +21,13 @@ import com.andrefilgs.lookdown_android.remote.LookDownRemote
 import com.andrefilgs.lookdown_android.remote.LookDownRemoteImpl
 import com.andrefilgs.lookdown_android.utils.DispatcherProvider
 import com.andrefilgs.lookdown_android.utils.StandardDispatchers
+import com.andrefilgs.lookdown_android.wmservice.LDWorkManagerController
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
 import java.util.*
+import com.andrefilgs.fileman.model.FilemanFeedback
+import com.andrefilgs.lookdown_android.wmservice.utils.getLDProgress
 
 
 /**
@@ -38,25 +43,32 @@ import java.util.*
  * @param progressRenderDelay To avoid UI Render Blinking inside RecyclerView we add some delay only for Downloading State (use 500ms or higher)
  */
 @ExperimentalCoroutinesApi
-class LookDown(private val context: Context,
-               private val id: String = UUID.randomUUID().toString(),
-               private var driver:Int=LD_DEFAULT_DRIVER,
-               private var folder:String= LD_DEFAULT_FOLDER,
-               private var resume: Boolean = true,
-               private var headers: Map<String, String>? = null,
-               private var chunkSize: Int= LD_CHUNK_SIZE,
-               private var timeout: Int= LD_TIMEOUT,
-               private var connectionTimeout: Int= LD_CONNECT_TIMEOUT,
-               private var fileExtension:String= "",
-               private var progressRenderDelay:Long= LD_PROGRESS_RENDER_DELAY,
-               private var activateLogs:Boolean = false,
-               private var logTag:String = LD_LOG_TAG
-               ) {
+class LookDown (
+  private val context: Context,
+  private val id: String = UUID.randomUUID().toString(),
+  private var driver:Int=LD_DEFAULT_DRIVER,
+  private var folder:String= LD_DEFAULT_FOLDER,
+  private var resume: Boolean = true,
+  private var headers: Map<String, String>? = null,
+  private var chunkSize: Int= LD_CHUNK_SIZE,
+  private var timeout: Int= LD_TIMEOUT,
+  private var connectionTimeout: Int= LD_CONNECT_TIMEOUT,
+  private var fileExtension:String= "",
+  private var progressRenderDelay:Long= LD_PROGRESS_RENDER_DELAY,
+  private var activateLogs:Boolean = false,
+  private var logTag:String = LD_LOG_TAG,
+  private var withService:Boolean = LD_WITH_SERVICE  //todo 1000
+) {
   
   private val logger = LDLogger(showLogs = activateLogs, tag = logTag)
   private val dispatcher : DispatcherProvider = StandardDispatchers()
   private val remote : LookDownRemote = LookDownRemoteImpl(logger, dispatcher, timeout = timeout, connectionTimeout= connectionTimeout)
   
+  private val workManager = WorkManager.getInstance(context)
+  
+  private val ldWorkManagerController: LDWorkManagerController = LDWorkManagerController(workManager, this.logger)
+  
+
   
   fun setLogTag(tag:String) { logger.tag = tag }
   fun activateLogs() { logger.showLogs = true }
@@ -89,6 +101,7 @@ class LookDown(private val context: Context,
     private var progressRenderDelay: Long= LD_PROGRESS_RENDER_DELAY
     private var activateLogs: Boolean= false
     private var logTag: String= LD_LOG_TAG
+    private var withService: Boolean= LD_WITH_SERVICE
     
     fun setId(id:String) {this.id = id }
     fun setDriver(driver:Int) {this.driver = driver}
@@ -103,12 +116,13 @@ class LookDown(private val context: Context,
     fun activateLogs() {this.activateLogs = true}
     fun deactivateLogs() {this.activateLogs = false}
     fun setLogTag(logTag:String) {this.logTag = logTag}
+    fun setWithService(activateService:Boolean) {this.withService = activateService}
     
     
     fun build(): LookDown {
       return LookDown(context, id=id, driver= driver, folder= folder, resume= forceResume, headers= headers,
                       chunkSize= chunkSize, timeout= timeout, connectionTimeout=connectTimeout,
-        fileExtension=fileExtension, progressRenderDelay= progressRenderDelay, activateLogs = activateLogs, logTag= logTag)
+        fileExtension=fileExtension, progressRenderDelay= progressRenderDelay, activateLogs = activateLogs, logTag= logTag, withService= withService)
     }
   }
 
@@ -150,13 +164,13 @@ class LookDown(private val context: Context,
    */
   suspend fun updateLDDownload(ldDownload: LDDownload, forceUpdate :Boolean= true) {
     if(forceUpdate){
-      withContext(Dispatchers.Main) { _ldDownload.value = ldDownload}
+      withContext(dispatcher.main) { _ldDownload.value = ldDownload}
     }else{
       val now = System.currentTimeMillis()
       val delta = now - lastRender
       if(delta > progressRenderDelay){
         lastRender = now
-        withContext(Dispatchers.Main) { _ldDownload.value = ldDownload}
+        withContext(dispatcher.main) { _ldDownload.value = ldDownload}
       }
     }
   }
@@ -255,6 +269,140 @@ class LookDown(private val context: Context,
     }
   }
   
+  
+  private val serviceList : MutableMap<UUID, LDDownload> = mutableMapOf()
+  
+  private val _lookdownWorkFeedback = MutableLiveData<WorkInfo>()
+  
+  /**
+   * User will observe this LiveData
+   */
+  val ldDownloadLiveDataService: LiveData<LDDownload> = Transformations.switchMap(_lookdownWorkFeedback) { workInfo ->
+    logger.log("@@@ 3")
+    val ldDownload = serviceList[workInfo.id]
+    ldDownload?.progress = workInfo.getLDProgress()
+    MutableLiveData(ldDownload)
+  }
+  
+
+  
+  private val observeWorkById = Observer<WorkInfo> { workInfo ->
+    if (workInfo == null) return@Observer
+    _lookdownWorkFeedback.value = workInfo
+  }
+  
+  val country = MutableLiveData<String>()
+  
+  fun clearObservers(){
+    serviceList.forEach { (id, _) ->
+      workManager.getWorkInfoByIdLiveData(id).removeObserver(observeWorkById)
+    }
+  }
+  
+
+  
+  suspend fun downloadAsService(ldDownload: LDDownload): UUID {
+    val id = ldWorkManagerController.startDownload(ldDownload)
+    return id
+  }
+  
+  fun getWorkInfoByLiveData(id:UUID):LiveData<WorkInfo>{
+    return workManager.getWorkInfoByIdLiveData(id)
+  }
+  
+  
+  /**
+   * Download any file
+   *
+   * Override DownloadWithFlow function with LDDownload as parameter
+   */
+  @ExperimentalCoroutinesApi
+  @InternalCoroutinesApi
+  suspend fun downloadWithFlow(ldDownload: LDDownload): Flow<LDDownload>? {
+    try {
+      return  downloadWithFlow(url = ldDownload.url!!, filename =  ldDownload.filename!!, fileExtension =  ldDownload.fileExtension ?: this.fileExtension, id = ldDownload.id,
+        title = ldDownload.title, params = ldDownload.params, mLDDownload = ldDownload)
+    }catch (e:Exception){
+      ldDownload.state = LDDownloadState.Error(e.message ?: e.localizedMessage)
+      updateLDDownload(ldDownload)
+    }
+    return null
+  }
+  
+  
+  @ExperimentalCoroutinesApi
+  @InternalCoroutinesApi
+  /**
+   * Download any file using flow
+   *
+   * Check download progress via ldDownloadLiveData
+   *
+   * @param url*
+   * @param filename*
+   * @param fileExtension* (e.g. ".mp4", ".png" ...)
+   * @param title
+   * @param params generic mutable map for any other needed property
+   *
+   */
+  suspend fun downloadWithFlow(url: String,
+    filename: String,
+    fileExtension: String = this.fileExtension,
+    id: String? = null,
+    title: String? = null,
+    resume: Boolean = this.resume,
+    params: MutableMap<String, String>? = null,
+    mLDDownload: LDDownload?=null
+  ) :Flow<LDDownload>{
+    // withContext(dispatcher.io) { //to avoid Inappropriate blocking method call
+    //   kotlin.runCatching {
+        val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = url, filename = filename, title = title, params = params)
+        
+        return flow {
+          logger.log("Checking download (file and connection): $url")
+          ldDownload.state = LDDownloadState.Queued
+          emit(ldDownload)
+          
+          val file = getFile(
+            filename,
+            "$fileExtension${LDGlobals.LD_TEMP_EXT}"
+          )
+          if (file == null) {
+            ldDownload.state = LDDownloadState.Error("File can't be null")
+            updateLDDownload(ldDownload)
+            return@flow
+          }
+          ldDownload.file = file
+          
+          val connection = remote.setup(
+            url = url,
+            resume = resume,
+            file = file,
+            headers = headers
+          )
+          if (connection == null) {
+            ldDownload.state = LDDownloadState.Error("Couldn't establish connection")
+            updateLDDownload(ldDownload)
+            return@flow
+          }
+          
+          remote.download(
+            connection= connection,
+            ldDownload= ldDownload,
+            file= file,
+            chunkSize= chunkSize,
+            resume= resume
+          ).collect {
+            emit(it)
+          }
+        }.catch { e->
+          logger.log("Catch ${e.printStackTrace()}")
+          ldDownload.state = LDDownloadState.Error("Catch: ${e.printStackTrace()}")
+          emit(ldDownload)
+          return@catch
+        }.flowOn(dispatcher.io)
+      // }
+    // }
+  }
   
   
   //endregion

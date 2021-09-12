@@ -16,6 +16,17 @@
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toTopOf="parent" />
    
+  <androidx.appcompat.widget.SwitchCompat
+    android:id="@+id/switchService"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="With Service"
+    
+    android:checked="true"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/download_tv_title"
+    />
   
   
   <Spinner
@@ -25,7 +36,7 @@
     android:layout_marginTop="16dp"
     app:layout_constraintEnd_toStartOf="@id/download_btn_stop_all"
     app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@+id/download_tv_title" />
+    app:layout_constraintTop_toBottomOf="@+id/switchService" />
   
   <Button
     android:id="@+id/download_btn_stop_all"
@@ -36,7 +47,7 @@
     app:layout_constraintStart_toEndOf="@id/download_spinner_executor_type"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintBottom_toBottomOf="@id/download_spinner_executor_type"
-    app:layout_constraintTop_toBottomOf="@id/download_tv_title"
+    app:layout_constraintTop_toBottomOf="@id/switchService"
     />
   
   <androidx.recyclerview.widget.RecyclerView

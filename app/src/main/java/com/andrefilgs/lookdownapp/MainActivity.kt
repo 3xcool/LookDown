@@ -30,6 +30,7 @@ class MainActivity : AppCompatActivity() {
     binding.btnSample02.setOnClickListener {
       goTo(Sample02Activity::class.java)
     }
+
   }
   
   private fun goTo(activity: Class<*>){

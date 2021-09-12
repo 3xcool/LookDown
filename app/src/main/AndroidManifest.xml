@@ -1,26 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
   package="com.andrefilgs.lookdownapp">
   
-  <uses-permission android:name="android.permission.INTERNET"/>
-  
   <application
-    android:name="com.andrefilgs.lookdownapp.app.MyApp"
+    android:name=".app.MyApp"
     android:allowBackup="true"
     android:icon="@mipmap/ic_launcher"
     android:label="@string/app_name"
     android:roundIcon="@mipmap/ic_launcher_round"
     android:supportsRtl="true"
     android:theme="@style/Theme.LookDown">
-    <activity android:name="com.andrefilgs.lookdownapp.samples.sample02.Sample02Activity" />
-    <activity android:name="com.andrefilgs.lookdownapp.samples.sample01.Sample01Activity" />
-    <activity android:name="com.andrefilgs.lookdownapp.MainActivity">
+
+    <activity android:name=".samples.sample02.Sample02Activity" />
+    <activity android:name=".samples.sample01.Sample01Activity" />
+    <activity android:name=".MainActivity">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
     </activity>
+  
+    <!--Remove Default WorkManager Initializer    -->
+<!--    <provider-->
+<!--      android:name="androidx.startup.InitializationProvider"-->
+<!--      android:authorities="${applicationId}.androidx-startup"-->
+<!--      android:exported="false"-->
+<!--      tools:node="merge">-->
+<!--      &lt;!&ndash; If you are using androidx.startup to initialize other components &ndash;&gt;-->
+<!--      <meta-data-->
+<!--        android:name="androidx.work.WorkManagerInitializer"-->
+<!--        android:value="androidx.startup"-->
+<!--        tools:node="remove" />-->
+<!--    </provider>-->
   </application>
+  
+  <uses-permission android:name="android.permission.INTERNET" />
 
 </manifest>

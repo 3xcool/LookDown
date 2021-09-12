@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
   package="com.xcool.lookdown">
-
+  
+  <!--      android:authorities="${applicationId}.androidx-startup"-->
+  <application>
+    <!--Remove Default WorkManager Initializer    -->
+<!--    <provider-->
+<!--      android:name="androidx.startup.InitializationProvider"-->
+<!--      android:authorities="com.andrefilgs.lookdown_android.androidx-startup"-->
+<!--      android:exported="false"-->
+<!--      tools:node="merge">-->
+<!--      &lt;!&ndash; If you are using androidx.startup to initialize other components &ndash;&gt;-->
+<!--      <meta-data-->
+<!--        android:name="androidx.work.WorkManagerInitializer"-->
+<!--        android:value="androidx.startup"-->
+<!--        tools:node="remove" />-->
+<!--    </provider>-->
+  </application>
 </manifest>
