@@ -3,6 +3,7 @@ package com.andrefilgs.lookdown_android
 import android.content.Context
 import androidx.lifecycle.*
 import androidx.lifecycle.Observer
+import androidx.work.Operation
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.andrefilgs.fileman.Fileman
@@ -28,6 +29,7 @@ import java.io.*
 import java.util.*
 import com.andrefilgs.fileman.model.FilemanFeedback
 import com.andrefilgs.lookdown_android.wmservice.utils.getLDProgress
+import com.google.common.util.concurrent.ListenableFuture
 
 
 /**
@@ -141,8 +143,9 @@ class LookDown (
   
   //region File Management
   
-  fun deleteFile(filename: String, fileExtension: String=this.fileExtension, driver: Int = this.driver , folder: String = this.folder): Boolean {
-    return Fileman.deleteFile(context, driver, folder, filename + fileExtension)
+  //passing context as parameter may avoid delete failure
+  fun deleteFile(filename: String, fileExtension: String=this.fileExtension, driver: Int = this.driver , folder: String = this.folder, context: Context?=null): Boolean {
+    return Fileman.deleteFile(context ?: this.context, driver, folder, filename + fileExtension)
   }
   
   fun getFile(filename: String, fileExtension: String = this.fileExtension, driver: Int? = this.driver , folder: String? = this.folder): File? {
@@ -270,6 +273,8 @@ class LookDown (
   }
   
   
+  //endregion
+  
   private val serviceList : MutableMap<UUID, LDDownload> = mutableMapOf()
   
   private val _lookdownWorkFeedback = MutableLiveData<WorkInfo>()
@@ -278,7 +283,6 @@ class LookDown (
    * User will observe this LiveData
    */
   val ldDownloadLiveDataService: LiveData<LDDownload> = Transformations.switchMap(_lookdownWorkFeedback) { workInfo ->
-    logger.log("@@@ 3")
     val ldDownload = serviceList[workInfo.id]
     ldDownload?.progress = workInfo.getLDProgress()
     MutableLiveData(ldDownload)
@@ -290,8 +294,12 @@ class LookDown (
     if (workInfo == null) return@Observer
     _lookdownWorkFeedback.value = workInfo
   }
+
+  fun observeWork(id:UUID){
+    ldDownloadLiveDataService.observeForever{
+    }
+  }
   
-  val country = MutableLiveData<String>()
   
   fun clearObservers(){
     serviceList.forEach { (id, _) ->
@@ -300,6 +308,8 @@ class LookDown (
   }
   
 
+  //region Service
+  
   
   suspend fun downloadAsService(ldDownload: LDDownload): UUID {
     val id = ldWorkManagerController.startDownload(ldDownload)
@@ -307,7 +317,15 @@ class LookDown (
   }
   
   fun getWorkInfoByLiveData(id:UUID):LiveData<WorkInfo>{
-    return workManager.getWorkInfoByIdLiveData(id)
+    return ldWorkManagerController.getWorkManager().getWorkInfoByIdLiveData(id)
+  }
+  
+  fun cancelDownloadService(id: UUID): ListenableFuture<Operation.State.SUCCESS> {
+    return ldWorkManagerController.cancelWorkById(id)
+  }
+  
+  fun pruneWork(){
+    ldWorkManagerController.getWorkManager().pruneWork()
   }
   
   

@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.andrefilgs.lookdown_android.domain.LDDownload
+import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.utils.formatFileSize
 import com.andrefilgs.lookdownapp.databinding.ItemDownloadBinding
 
@@ -71,6 +72,7 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
       }
       binding.itemDownTvProgress.text = progressMessage
       binding.itemDownProgress.progress = download.progress
+      binding.itemDownProgress.isIndeterminate = download.state == LDDownloadState.Queued //todo 10000
       binding.itemDownTvIndex.text = (position +1).toString()
       
       binding.itemDownIvAction.setOnClickListener {

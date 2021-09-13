@@ -13,9 +13,10 @@ import com.andrefilgs.lookdown_android.LookDown
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.utils.StandardDispatchers
-import com.andrefilgs.lookdown_android.wmservice.factory.LDWorkRequestFactory
+import com.andrefilgs.lookdown_android.utils.orDefault
 import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS
-import com.andrefilgs.lookdown_android.wmservice.utils.getLDProgress
+import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS_ID
+import com.andrefilgs.lookdown_android.wmservice.utils.getLdId
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.samples.sample02.model.LDDownloadUtils
 import com.andrefilgs.lookdownapp.utils.BaseViewModel
@@ -46,8 +47,12 @@ class DownloadViewModel @Inject constructor(
   
   private val dispatchers = StandardDispatchers()
   
-  
-  private val workDelay = 1000L
+
+  init {
+    lookDown.pruneWork()
+  }
+
+ private val workDelay = 1000L
   
   //Executor schema
   private var _schema = MutableStateFlow<ExecutorSchema>(ExecutorSchema.Queue)
@@ -92,8 +97,13 @@ class DownloadViewModel @Inject constructor(
     }
   }
   
-  fun stopDownload(download: LDDownload, position: Int) {
-    baseCoroutineScope.launch {
+  fun stopDownload(download: LDDownload, position: Int, withService:Boolean? = false) {
+    launch(schema.value) {
+      
+      if(withService.orDefault()){
+        stopServiceById(download)
+      }
+      
       workingJobList[download.id]?.let {
         it.second.cancelAndJoin()
       }
@@ -103,8 +113,32 @@ class DownloadViewModel @Inject constructor(
     }
   }
   
+  
+  private fun stopServiceById(download: LDDownload){
+    serviceList[download.id]?.let{ ldDownload ->
+      AppLogger.log("@@@ Stopping service with id ${ldDownload.id} and workId: ${ldDownload.workId}")
+      lookDown.cancelDownloadService(ldDownload.workId!!)
+      serviceList.remove(ldDownload.id)
+    }
+    // serviceList.forEach { (k,v) ->
+    //   if(serviceList[k]?.workId == download.id){
+    //     AppLogger.log("@@@ Stopping service with id $k and workId: ${v.workId}")
+    //     lookDown.cancelDownloadService(v.workId!!)
+    //     serviceList.remove(k)
+    //   }
+    // }
+  }
+  
+  
+  fun stopAllServices(){
+    serviceList.forEach { (k,v) ->
+      lookDown.cancelDownloadService(v.workId!!)
+    }
+  }
+  
   fun stopAllDownload() {
     launch(ExecutorSchema.Concurrent) {
+      stopAllServices()
       workingJobList.forEach { map ->
         map.value.third.setStateAfterDownloadStops()
         lookDown.updateLDDownload(map.value.third)
@@ -115,17 +149,25 @@ class DownloadViewModel @Inject constructor(
   
   fun deleteDownload(download: LDDownload, position: Int) {
     launch(ExecutorSchema.Concurrent) {
-      val res = lookDown.deleteFile(download.filename!!, download.fileExtension!!)
-      if(!res){
-        download.state = LDDownloadState.Error("File not deleted")
-      }else{
-        download.updateProgress(0)
-        download.params?.set(KEY_POSITION, position.toString())
+      withContext(dispatchers.io){
+        val res = lookDown.deleteFile(download.filename!!, download.fileExtension!!, driver=driver, folder=folder)
+        if(!res){
+          download.state = LDDownloadState.Error("File not deleted")
+        }else{
+          download.updateProgress(0)
+          download.params?.set(KEY_POSITION, position.toString())
+        }
+        lookDown.updateLDDownload(download)
       }
-      lookDown.updateLDDownload(download)
     }
   }
   
+  fun refreshState(download: LDDownload){
+    launch(ExecutorSchema.Concurrent) {
+      download.updateProgress(download.progress)
+      lookDown.updateLDDownload(download, forceUpdate = true)
+    }
+  }
 
 
   
@@ -169,30 +211,42 @@ class DownloadViewModel @Inject constructor(
     }
   }
   
-  private val serviceList : MutableMap<UUID, LDDownload> = mutableMapOf()
+  private val serviceList : MutableMap<String, LDDownload> = mutableMapOf()  //key will be LDDownload ID
   
   @InternalCoroutinesApi
   private suspend fun downloadFile(lifecycleOwner: LifecycleOwner, ldDownload: LDDownload, withService:Boolean){
     if(ldDownload.validateInfoForDownloading()){
       if(withService) {
-        val id = lookDown.downloadAsService(ldDownload)
-        serviceList[id] = ldDownload
-        
-        withContext(dispatchers.main){
-          lookDown.getWorkInfoByLiveData(id).observe(lifecycleOwner){ workInfo ->
-            val mLdDownload = serviceList[workInfo.id] ?: return@observe
-            mLdDownload.updateProgress(workInfo.progress.getInt(LD_WORK_KEY_PROGRESS, mLdDownload.progress))
-            launch(schema.value){
-              lookDown.updateLDDownload(mLdDownload)
-            }
-          }
-        }
+        val workId = lookDown.downloadAsService(ldDownload)
+        ldDownload.workId = workId
+        // val uuid = UUID.fromString(ldDownload.id)
+        serviceList[ldDownload.id] = ldDownload
+        observeWorkService(lifecycleOwner, workId)
       } else {
         lookDown.download(ldDownload)
       }
     }else{
       ldDownload.state = LDDownloadState.Error("Missing download info")
       lookDown.updateLDDownload(ldDownload)
+    }
+  }
+  
+  
+  private suspend fun observeWorkService(lifecycleOwner: LifecycleOwner, workId:UUID){
+    withContext(dispatchers.main){
+      lookDown.getWorkInfoByLiveData(workId).observe(lifecycleOwner){ workInfo ->
+        AppLogger.log("Received workInfo with id ${workInfo.getLdId()}")
+  
+        val ldDownload = serviceList[workInfo.progress.getString(LD_WORK_KEY_PROGRESS_ID)] ?: return@observe
+        AppLogger.log("Received workInfo with progress ${workInfo.progress.getInt(LD_WORK_KEY_PROGRESS, ldDownload.progress)}")
+        
+        if(workInfo.progress.getInt(LD_WORK_KEY_PROGRESS ,0) > 0){
+          ldDownload.updateProgress(workInfo.progress.getInt(LD_WORK_KEY_PROGRESS, ldDownload.progress))
+        }
+        launch(schema.value){
+          lookDown.updateLDDownload(ldDownload, forceUpdate = true)
+        }
+      }
     }
   }
   

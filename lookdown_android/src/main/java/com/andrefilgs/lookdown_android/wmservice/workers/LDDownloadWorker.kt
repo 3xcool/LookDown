@@ -8,17 +8,17 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.work.*
+import com.andrefilgs.lookdown_android.LDGlobals
 import com.andrefilgs.lookdown_android.LookDown
 import com.andrefilgs.lookdown_android.domain.LDDownload
+import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.log.LDLogger
 import com.andrefilgs.lookdown_android.utils.StandardDispatchers
 import com.andrefilgs.lookdown_android.wmservice.factory.LDWorkRequestFactory
 import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS
+import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS_ID
 import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_STATE
-import com.andrefilgs.lookdown_android.wmservice.utils.getFilename
-import com.andrefilgs.lookdown_android.wmservice.utils.getLDProgress
-import com.andrefilgs.lookdown_android.wmservice.utils.getLdUrl
-import com.andrefilgs.lookdown_android.wmservice.utils.putLdProgress
+import com.andrefilgs.lookdown_android.wmservice.utils.*
 import kotlinx.coroutines.*
 import com.xcool.lookdown.R
 import kotlinx.coroutines.flow.collect
@@ -48,6 +48,7 @@ internal class LDDownloadWorker (
   private val ldLogger = LDLogger(true) //todo 1000
   
   private val lookDown = LookDown.Builder(context).apply {
+    setFileExtension(LDGlobals.LD_VIDEO_MP4_EXT)
     activateLogs()
   }.build()
   
@@ -57,30 +58,26 @@ internal class LDDownloadWorker (
     val url = getLdUrl()
     val filename = getFilename()
     val progress = getLDProgress()
-    
+    val ldId = getLDId()
+    val ldDownload = LDDownload(id= ldId!!, url=url, filename = filename, progress = progress, state = LDDownloadState.Queued)
     withContext(dispatchers.io){
-      // val inputUrl = inputData.getString(KEY_INPUT_URL)
-      //   ?: return Result.failure()
-      // val outputFile = inputData.getString(KEY_OUTPUT_FILE_NAME)
-      //   ?: return Result.failure()
-      // Mark the Worker as important
-  
       // Create a Notification channel if necessary
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         createChannel(CHANNEL_ID_LD_DOWNLOAD)
       }
       
       val msg = "Starting Download $url"
-      setForeground(createForegroundInfo(msg, progress))
-      // download(inputUrl, outputFile)
+      setForeground(createForegroundInfo(msg, progress, indeterminate = true))
       val job = async {
         // mockDownload()
-        download(LDDownload(url=url, filename = filename, progress = progress))
+        download(ldDownload)
       }
   
       val jobRes = job.await()
       val deltaTime = System.currentTimeMillis() - initTime
       val outputData = Data.Builder().apply {
+        if (jobRes) putInt(LD_WORK_KEY_PROGRESS, 100)
+        putLdId(ldDownload.id)
         putString(LDWorkRequestFactory.WORK_KEY_OUTPUT, "Download with success? $job\nThis is output message after $deltaTime milliseconds")
       }.build()
       
@@ -88,6 +85,7 @@ internal class LDDownloadWorker (
       else Result.failure(outputData)
     }
   }
+  
   
 
   
@@ -101,7 +99,9 @@ internal class LDDownloadWorker (
       setForeground(createForegroundInfo("Progress $progress%", progress))
       
       val output = Data.Builder().apply {
-        putLdProgress(progress)
+        // putLdProgress(progress)
+        // putLdId(ldDownload.id)
+        putString(LD_WORK_KEY_PROGRESS_ID, ldDownload.id)
         putInt(LD_WORK_KEY_PROGRESS, progress)
       }.build()
       setProgressAsync(output)
@@ -128,7 +128,7 @@ internal class LDDownloadWorker (
   // ongoing notification.
   
   //todo 1000
-  private fun createForegroundInfo(msg:String, progress: Int, title:String?=null): ForegroundInfo {
+  private fun createForegroundInfo(msg:String, progress: Int, title:String?=null, indeterminate:Boolean?=false): ForegroundInfo {
     val id = CHANNEL_ID_LD_DOWNLOAD //applicationContext.getString(R.string.notification_channel_id)
     val mTitle = title ?: "LookDown" // applicationContext.getString(R.string.notification_title)
     val cancel = "Cancel" //applicationContext.getString(R.string.cancel_download)
@@ -147,7 +147,7 @@ internal class LDDownloadWorker (
       .setContentText(msg)
       .setSmallIcon(R.drawable.ld_ic_download_24) //todo 1000
       .setOngoing(true)
-      .setProgress(100, progress, false)
+      .setProgress(100, progress, indeterminate?:false)
       // Add the cancel action to the notification which can
       // be used to cancel the worker
       .addAction(android.R.drawable.ic_delete, cancel, intent)

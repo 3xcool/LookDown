@@ -3,11 +3,9 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
-        <entry key="..\:/Andre/Android/_apps/LookDown/app/src/main/res/layout/activity_main.xml" value="0.20520833333333333" />
-        <entry key="..\:/Andre/Android/_apps/LookDown/app/src/main/res/layout/activity_sample01.xml" value="0.2520833333333333" />
-        <entry key="..\:/Andre/Android/_apps/LookDown/app/src/main/res/layout/activity_sample02.xml" value="0.36666666666666664" />
-        <entry key="..\:/Andre/Android/_apps/LookDown/app/src/main/res/layout/activity_sample03.xml" value="0.35260416666666666" />
-        <entry key="..\:/Andre/Android/_apps/LookDown/lookdown_android/src/main/res/drawable/ld_ic_download_24.xml" value="0.24322916666666666" />
+        <entry key="..\:/Andre/Personal/Android/_apps/LookDown/lookdown_android/src/main/res/drawable/ld_ic_download_24.xml" value="0.346875" />
+        <entry key="..\:/Andre/Personal/Android/_apps/LookDown/lookdown_android/src/main/res/drawable/ld_ic_error_24.xml" value="0.346875" />
+        <entry key="..\:/Andre/Personal/Android/_apps/LookDown/lookdown_android/src/main/res/drawable/ld_ic_pause_24.xml" value="0.346875" />
       </map>
     </option>
   </component>

@@ -123,14 +123,17 @@ class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterV
     val withService= binding.switchService.isChecked
     when(download.getCurrentDownloadState()){
       LDDownloadState.Empty       -> viewModel.startDownload(this, download, position, withService)
-      LDDownloadState.Queued      -> viewModel.stopDownload(download, position)
+      LDDownloadState.Queued      -> viewModel.stopDownload(download, position, withService)
       LDDownloadState.Paused      -> viewModel.startDownload(this, download, position, withService)
-      LDDownloadState.Downloading -> viewModel.stopDownload(download, position)
+      LDDownloadState.Downloading -> viewModel.stopDownload(download, position, withService)
       LDDownloadState.Downloaded  -> viewModel.deleteDownload(download, position)
       LDDownloadState.Incomplete  -> viewModel.startDownload(this, download, position, withService)
       // else -> Unit
       else                        -> {
-        if( download.state is LDDownloadState.Error) viewModel.startDownload(this, download, position, withService)  //error can be triggered if using Conflate cause Coroutine will cancel this download automatically
+        if( download.state is LDDownloadState.Error) {
+          viewModel.refreshState(download)
+          // viewModel.startDownload(this, download, position, withService)
+        }  //error can be triggered if using Conflate cause Coroutine will cancel this download automatically
       }
     }
     
@@ -149,16 +152,20 @@ class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterV
     viewModel.ldDownload.observe(this, { event ->
       event.getContentIfNotHandled().let { download ->
         AppLogger.log("Trigger render received ldDownload with state ${download?.state}")
-        download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+        download?.let {
+          downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt())
+          
+          // if(download.state is LDDownloadState.Error) viewModel.refreshState(it)
+        }
       }
     })
   
-    viewModel.ldDownloadService.observe(this, { event ->
-      event.getContentIfNotHandled().let { download ->
-        AppLogger.log("Trigger render received ldDownload as service")
-        download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
-      }
-    })
+    // viewModel.ldDownloadService.observe(this, { event ->
+    //   event.getContentIfNotHandled().let { download ->
+    //     AppLogger.log("Trigger render received ldDownload as service")
+    //     download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
+    //   }
+    // })
   }
   
   

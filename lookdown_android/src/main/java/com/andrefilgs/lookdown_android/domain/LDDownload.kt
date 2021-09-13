@@ -8,7 +8,7 @@ import java.util.*
  * @author André Filgueiras on 28/11/2020
  *
  *
- *
+ * @param workId form WorkManager service identification
  * @param params generic mutable map for any other needed property
  */
 data class LDDownload(
@@ -24,6 +24,7 @@ data class LDDownload(
   var state: LDDownloadState? = LDDownloadState.Empty,
   var feedback: String? = null,
   var title: String? = null,
+  var workId: UUID? = null,
   var params: MutableMap<String, String>? = null,
 ){
   
@@ -40,6 +41,7 @@ data class LDDownload(
       LDDownloadState.Paused      -> R.drawable.ld_ic_restart_24
       LDDownloadState.Incomplete  -> R.drawable.ld_ic_restart_24
       LDDownloadState.Downloaded  -> R.drawable.ld_ic_delete_24
+      is LDDownloadState.Error       -> R.drawable.ld_ic_error_24
       else                        ->  R.drawable.ld_ic_download_24
     }
   }

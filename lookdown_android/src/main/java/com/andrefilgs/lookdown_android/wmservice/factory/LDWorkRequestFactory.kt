@@ -3,11 +3,13 @@ package com.andrefilgs.lookdown_android.wmservice.factory
 import androidx.work.*
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.wmservice.utils.putFilename
+import com.andrefilgs.lookdown_android.wmservice.utils.putLdId
 import com.andrefilgs.lookdown_android.wmservice.utils.putUrl
 import com.andrefilgs.lookdown_android.wmservice.workers.LDDownloadWorker
 import java.util.concurrent.TimeUnit
 
 const val LD_WORK_KEY_PROGRESS = "LD_WORK_KEY_PROGRESS"
+const val LD_WORK_KEY_PROGRESS_ID = "LD_WORK_KEY_PROGRESS_ID"
 const val LD_WORK_KEY_STATE = "LD_WORK_KEY_STATE"
 
 class LDWorkRequestFactory {
@@ -47,6 +49,7 @@ class LDWorkRequestFactory {
       inputData.putLong(WORK_KEY_INITTIME, System.currentTimeMillis())
       inputData.putUrl(ldDownload.url!!)
       inputData.putFilename(ldDownload.filename!!)
+      inputData.putLdId(ldDownload.id)
       
       return OneTimeWorkRequest.Builder(LDDownloadWorker::class.java)
         .setConstraints(getDownloadConstraints())

@@ -17,7 +17,7 @@ object LDGlobals {
   var LD_TIMEOUT = 5000
   var LD_CONNECT_TIMEOUT = 5000
   var LD_DEFAULT_FOLDER = "/lookdown"
-  var LD_DEFAULT_DRIVER = FilemanDrivers.Internal.type //0 = SandBox, 1= Device, 2 = SD Card //
+  var LD_DEFAULT_DRIVER = FilemanDrivers.SandBox.type //0 = SandBox, 1= Device, 2 = SD Card //
   var LD_LOG_TAG = "LookDown"
   var LD_WITH_SERVICE = false
 }

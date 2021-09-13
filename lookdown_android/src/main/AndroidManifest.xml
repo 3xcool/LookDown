@@ -3,6 +3,9 @@
   xmlns:tools="http://schemas.android.com/tools"
   package="com.xcool.lookdown">
   
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  
   <!--      android:authorities="${applicationId}.androidx-startup"-->
   <application>
     <!--Remove Default WorkManager Initializer    -->

@@ -26,7 +26,7 @@ object LookDownModule {
     return builder.apply {
       setChunkSize(4096)
       setFileExtension(LDGlobals.LD_VIDEO_MP4_EXT)
-      setDriver(1) //0 = Sandbox (Where the app is installed), 1 = Internal (Phone), 2 = SD Card
+      setDriver(LDGlobals.LD_DEFAULT_DRIVER) //0 = Sandbox (Where the app is installed), 1 = Internal (Phone), 2 = SD Card
       setFolder(LDGlobals.LD_DEFAULT_FOLDER)
       setForceResume(true)
       setTimeout(5000)
