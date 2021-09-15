@@ -5,6 +5,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Transformations
+import androidx.work.WorkInfo
 import com.xcool.coroexecutor.core.CoroUtil
 import com.xcool.coroexecutor.core.Executor
 import com.xcool.coroexecutor.core.ExecutorSchema
@@ -14,8 +15,9 @@ import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.utils.StandardDispatchers
 import com.andrefilgs.lookdown_android.utils.orDefault
-import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS
-import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS_ID
+import com.andrefilgs.lookdown_android.wmservice.factory.LDWorkRequestFactory
+import com.andrefilgs.lookdown_android.wmservice.factory.LD_KEY_PROGRESS
+import com.andrefilgs.lookdown_android.wmservice.utils.LD_KEY_ID
 import com.andrefilgs.lookdown_android.wmservice.utils.getLdId
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.samples.sample02.model.LDDownloadUtils
@@ -116,17 +118,10 @@ class DownloadViewModel @Inject constructor(
   
   private fun stopServiceById(download: LDDownload){
     serviceList[download.id]?.let{ ldDownload ->
-      AppLogger.log("@@@ Stopping service with id ${ldDownload.id} and workId: ${ldDownload.workId}")
+      AppLogger.log("Stopping service with id ${ldDownload.id} and workId: ${ldDownload.workId}")
       lookDown.cancelDownloadService(ldDownload.workId!!)
       serviceList.remove(ldDownload.id)
     }
-    // serviceList.forEach { (k,v) ->
-    //   if(serviceList[k]?.workId == download.id){
-    //     AppLogger.log("@@@ Stopping service with id $k and workId: ${v.workId}")
-    //     lookDown.cancelDownloadService(v.workId!!)
-    //     serviceList.remove(k)
-    //   }
-    // }
   }
   
   
@@ -221,7 +216,7 @@ class DownloadViewModel @Inject constructor(
         ldDownload.workId = workId
         // val uuid = UUID.fromString(ldDownload.id)
         serviceList[ldDownload.id] = ldDownload
-        observeWorkService(lifecycleOwner, workId)
+        observeWorkService(lifecycleOwner, workId)  //Download Work
       } else {
         lookDown.download(ldDownload)
       }
@@ -235,13 +230,21 @@ class DownloadViewModel @Inject constructor(
   private suspend fun observeWorkService(lifecycleOwner: LifecycleOwner, workId:UUID){
     withContext(dispatchers.main){
       lookDown.getWorkInfoByLiveData(workId).observe(lifecycleOwner){ workInfo ->
-        AppLogger.log("Received workInfo with id ${workInfo.getLdId()}")
-  
-        val ldDownload = serviceList[workInfo.progress.getString(LD_WORK_KEY_PROGRESS_ID)] ?: return@observe
-        AppLogger.log("Received workInfo with progress ${workInfo.progress.getInt(LD_WORK_KEY_PROGRESS, ldDownload.progress)}")
+        AppLogger.log("Received workInfo $workInfo")
+        val data = when(workInfo.state) {
+          WorkInfo.State.RUNNING -> workInfo.progress
+          else -> workInfo.outputData
+        }
+        AppLogger.log("Received workInfo with id ${data.getLdId()}")
         
-        if(workInfo.progress.getInt(LD_WORK_KEY_PROGRESS ,0) > 0){
-          ldDownload.updateProgress(workInfo.progress.getInt(LD_WORK_KEY_PROGRESS, ldDownload.progress))
+        val res = data.getBoolean(LDWorkRequestFactory.WORK_KEY_FINAL, false)
+        if(res) AppLogger.log("Final Work!!! @@@")
+  
+        val ldDownload = serviceList[data.getString(LD_KEY_ID)] ?: return@observe
+        AppLogger.log("Received workInfo with progress ${data.getInt(LD_KEY_PROGRESS, ldDownload.progress)}")
+        
+        if(data.getInt(LD_KEY_PROGRESS ,0) > 0){
+          ldDownload.updateProgress(data.getInt(LD_KEY_PROGRESS, ldDownload.progress))
         }
         launch(schema.value){
           lookDown.updateLDDownload(ldDownload, forceUpdate = true)

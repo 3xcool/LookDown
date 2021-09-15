@@ -312,8 +312,7 @@ class LookDown (
   
   
   suspend fun downloadAsService(ldDownload: LDDownload): UUID {
-    val id = ldWorkManagerController.startDownload(ldDownload)
-    return id
+    return ldWorkManagerController.startDownload(ldDownload)
   }
   
   fun getWorkInfoByLiveData(id:UUID):LiveData<WorkInfo>{

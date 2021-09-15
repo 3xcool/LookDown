@@ -11,13 +11,16 @@ import java.util.*
 
 internal class LDWorkManagerController ( private val workManager: WorkManager, private val ldLogger:LDLogger) {
   
+  private var notificationCounter = 0 //todo 100
+  
   
   fun startDownload(ldDownload: LDDownload): UUID {
-    val workRequest = LDWorkRequestFactory.buildDownloadWorkerOneTime(ldDownload = ldDownload)
+    val workRequest = LDWorkRequestFactory.buildDownloadWorkerOneTime(ldDownload = ldDownload, notificationId = notificationCounter)
     workManager.let{
       ldLogger.log("Starting worker")
       it.beginWith(workRequest).enqueue()
     }
+    notificationCounter++
     return workRequest.id
   }
   

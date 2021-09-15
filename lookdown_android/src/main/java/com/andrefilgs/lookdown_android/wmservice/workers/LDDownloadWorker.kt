@@ -15,9 +15,8 @@ import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.log.LDLogger
 import com.andrefilgs.lookdown_android.utils.StandardDispatchers
 import com.andrefilgs.lookdown_android.wmservice.factory.LDWorkRequestFactory
-import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS
-import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_PROGRESS_ID
-import com.andrefilgs.lookdown_android.wmservice.factory.LD_WORK_KEY_STATE
+import com.andrefilgs.lookdown_android.wmservice.factory.LD_KEY_PROGRESS
+import com.andrefilgs.lookdown_android.wmservice.factory.LD_KEY_DOWNLOAD_ID
 import com.andrefilgs.lookdown_android.wmservice.utils.*
 import kotlinx.coroutines.*
 import com.xcool.lookdown.R
@@ -47,18 +46,21 @@ internal class LDDownloadWorker (
   private val dispatchers = StandardDispatchers()
   private val ldLogger = LDLogger(true) //todo 1000
   
+  //todo 1000
   private val lookDown = LookDown.Builder(context).apply {
     setFileExtension(LDGlobals.LD_VIDEO_MP4_EXT)
     activateLogs()
   }.build()
   
+  @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
   override suspend fun doWork(): Result = coroutineScope{
-    val initTime =  inputData.getLong(LDWorkRequestFactory.WORK_KEY_INITTIME,0)
+    val initTime =  inputData.getLong(LDWorkRequestFactory.WORK_KEY_INIT_TIME,0)
     val url = getLdUrl()
     val filename = getFilename()
     val progress = getLDProgress()
     val ldId = getLDId()
+    val notificationId = getLDNotificationId()
     val ldDownload = LDDownload(id= ldId!!, url=url, filename = filename, progress = progress, state = LDDownloadState.Queued)
     withContext(dispatchers.io){
       // Create a Notification channel if necessary
@@ -67,17 +69,21 @@ internal class LDDownloadWorker (
       }
       
       val msg = "Starting Download $url"
-      setForeground(createForegroundInfo(msg, progress, indeterminate = true))
+      setForeground(createForegroundInfo(notificationId, msg, progress, indeterminate = true))
       val job = async {
         // mockDownload()
-        download(ldDownload)
+        download(notificationId, ldDownload)
       }
   
       val jobRes = job.await()
       val deltaTime = System.currentTimeMillis() - initTime
       val outputData = Data.Builder().apply {
-        if (jobRes) putInt(LD_WORK_KEY_PROGRESS, 100)
-        putLdId(ldDownload.id)
+        // if (jobRes) putInt(LD_WORK_KEY_PROGRESS, 100)
+        // putString(LD_KEY_DOWNLOAD_ID, ldDownload.id)
+        // putLdId(ldDownload.id)
+        // putLdProgress(ldDownload.progress)
+        putString(LD_KEY_ID, ldDownload.id)
+        putInt(LD_KEY_PROGRESS, ldDownload.progress)
         putString(LDWorkRequestFactory.WORK_KEY_OUTPUT, "Download with success? $job\nThis is output message after $deltaTime milliseconds")
       }.build()
       
@@ -91,18 +97,18 @@ internal class LDDownloadWorker (
   
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
-  private suspend fun download(ldDownload: LDDownload): Boolean {
+  private suspend fun download(notificationId: Int, ldDownload: LDDownload): Boolean {
     val res = lookDown.downloadWithFlow(ldDownload) ?: return false
     res.collect { ldDownloadProgress->
       // ldLogger.log("Download in progress: ${ldDownloadProgress.progress}")
       val progress = ldDownloadProgress.progress
-      setForeground(createForegroundInfo("Progress $progress%", progress))
+      setForeground(createForegroundInfo(notificationId,"Progress $progress%", progress))
       
       val output = Data.Builder().apply {
         // putLdProgress(progress)
         // putLdId(ldDownload.id)
-        putString(LD_WORK_KEY_PROGRESS_ID, ldDownload.id)
-        putInt(LD_WORK_KEY_PROGRESS, progress)
+        putString(LD_KEY_ID, ldDownload.id)
+        putInt(LD_KEY_PROGRESS, progress)
       }.build()
       setProgressAsync(output)
     }
@@ -119,7 +125,7 @@ internal class LDDownloadWorker (
     for (i in 1..iterations){
       delay(1000L)
       val progress =  i*100/iterations
-      setForeground(createForegroundInfo("Progress $progress%", progress))
+      setForeground(createForegroundInfo(0, "Progress $progress%", progress))
       setProgressAsync(Data.Builder().putLdProgress(progress).build())
     }
   }
@@ -128,7 +134,7 @@ internal class LDDownloadWorker (
   // ongoing notification.
   
   //todo 1000
-  private fun createForegroundInfo(msg:String, progress: Int, title:String?=null, indeterminate:Boolean?=false): ForegroundInfo {
+  private fun createForegroundInfo(notificationId:Int, msg:String, progress: Int, title:String?=null, indeterminate:Boolean?=false): ForegroundInfo {
     val id = CHANNEL_ID_LD_DOWNLOAD //applicationContext.getString(R.string.notification_channel_id)
     val mTitle = title ?: "LookDown" // applicationContext.getString(R.string.notification_title)
     val cancel = "Cancel" //applicationContext.getString(R.string.cancel_download)
@@ -153,14 +159,15 @@ internal class LDDownloadWorker (
       .addAction(android.R.drawable.ic_delete, cancel, intent)
       .build()
     
-    return ForegroundInfo(101, notification)
+    return ForegroundInfo(notificationId, notification)
   }
   
   
   
   @RequiresApi(Build.VERSION_CODES.O)
   private fun createChannel(id: String) {
-    val ldDownloadChannel = NotificationChannel(id, "Downloads", NotificationManager.IMPORTANCE_MIN )
+    // val ldDownloadChannel = NotificationChannel(id, "Downloads", NotificationManager.IMPORTANCE_MIN )
+    val ldDownloadChannel = NotificationChannel(id, "Downloads", NotificationManager.IMPORTANCE_HIGH ) //todo 100 as parameter
   
     val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build()
     
