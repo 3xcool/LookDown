@@ -14,8 +14,8 @@ internal class LDWorkManagerController ( private val workManager: WorkManager, p
   private var notificationCounter = 0 //todo 100
   
   
-  fun startDownload(ldDownload: LDDownload): UUID {
-    val workRequest = LDWorkRequestFactory.buildDownloadWorkerOneTime(ldDownload = ldDownload, notificationId = notificationCounter)
+  fun startDownload(ldDownload: LDDownload, resume:Boolean): UUID {
+    val workRequest = LDWorkRequestFactory.buildDownloadWorkerOneTime(ldDownload = ldDownload, notificationId = notificationCounter, resume=resume)
     workManager.let{
       ldLogger.log("Starting worker")
       it.beginWith(workRequest).enqueue()

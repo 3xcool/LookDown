@@ -1,6 +1,5 @@
 package com.andrefilgs.lookdownapp.samples.sample01
 
-import android.content.Context
 import androidx.lifecycle.*
 import com.xcool.coroexecutor.core.Executor
 import com.andrefilgs.lookdown_android.LDGlobals.LD_DEFAULT_DRIVER
@@ -72,6 +71,7 @@ class Sample01ViewModel @Inject constructor(
     }
   }
   
+  @ExperimentalCoroutinesApi
   fun deleteFile(){
     baseCoroutineScope.launch {
       _loading.value = true
@@ -96,7 +96,7 @@ class Sample01ViewModel @Inject constructor(
   fun downloadWithFlow(url:String, resume:Boolean){
     val job = baseCoroutineScope.launch(Dispatchers.IO) {
       // LookDownLite.download(context, url, filename, extension, null, driver, folder, resume)
-      lookDown.download(url= url, filename, extension, resume=resume)
+      lookDown.download(url= url,filename= filename, fileExtension= extension, resume=resume)
     }
     jobsList[filename] = job
   }

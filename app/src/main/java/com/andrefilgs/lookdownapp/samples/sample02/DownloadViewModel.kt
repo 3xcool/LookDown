@@ -15,10 +15,9 @@ import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.utils.StandardDispatchers
 import com.andrefilgs.lookdown_android.utils.orDefault
-import com.andrefilgs.lookdown_android.wmservice.factory.LDWorkRequestFactory
-import com.andrefilgs.lookdown_android.wmservice.factory.LD_KEY_PROGRESS
-import com.andrefilgs.lookdown_android.wmservice.utils.LD_KEY_ID
-import com.andrefilgs.lookdown_android.wmservice.utils.getLdId
+import com.andrefilgs.lookdown_android.wmservice.utils.getLDOutputMsg
+import com.andrefilgs.lookdown_android.wmservice.utils.getLDId
+import com.andrefilgs.lookdown_android.wmservice.utils.getLDProgress
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.samples.sample02.model.LDDownloadUtils
 import com.andrefilgs.lookdownapp.utils.BaseViewModel
@@ -66,11 +65,6 @@ class DownloadViewModel @Inject constructor(
 
   //LookDown LiveData
   val ldDownload: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveData) {
-    Event(it)
-  }
-  
-  val ldDownloadService: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveDataService) {
-    AppLogger.log("@@@ 4")
     Event(it)
   }
   
@@ -235,26 +229,28 @@ class DownloadViewModel @Inject constructor(
           WorkInfo.State.RUNNING -> workInfo.progress
           else -> workInfo.outputData
         }
-        AppLogger.log("Received workInfo with id ${data.getLdId()}")
-        
-        val res = data.getBoolean(LDWorkRequestFactory.WORK_KEY_FINAL, false)
-        if(res) AppLogger.log("Final Work!!! @@@")
+        AppLogger.log("Received workInfo with id ${data.getLDId()}")
   
-        val ldDownload = serviceList[data.getString(LD_KEY_ID)] ?: return@observe
-        AppLogger.log("Received workInfo with progress ${data.getInt(LD_KEY_PROGRESS, ldDownload.progress)}")
+        val ldDownload = serviceList[data.getLDId()] ?: return@observe
         
-        if(data.getInt(LD_KEY_PROGRESS ,0) > 0){
-          ldDownload.updateProgress(data.getInt(LD_KEY_PROGRESS, ldDownload.progress))
+        val currentProgress = data.getLDProgress()
+        AppLogger.log("Received workInfo with progress $currentProgress")
+        
+        if(currentProgress> 0){
+          ldDownload.updateProgress(currentProgress)
         }
         launch(schema.value){
           lookDown.updateLDDownload(ldDownload, forceUpdate = true)
+        }
+        // data.getLDElapsedTime()
+        data.getLDOutputMsg()?.let{
+          AppLogger.log(it)
         }
       }
     }
   }
   
   override fun onCleared() {
-    lookDown.clearObservers() //ATTENTION //todo 10000
     super.onCleared()
   }
   

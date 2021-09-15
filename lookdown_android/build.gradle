@@ -12,7 +12,7 @@ apply plugin: 'signing'
 
 
 def versionMajor = 1
-def versionMinor = 0
+def versionMinor = 1
 def versionPatch = 0
 
 def localProperties = new Properties()
@@ -44,7 +44,7 @@ ext {
 
 android {
     compileSdkVersion 30
-    buildToolsVersion "30.0.2"
+//    buildToolsVersion "30.0.2"
 
     signingConfigs {
         release {

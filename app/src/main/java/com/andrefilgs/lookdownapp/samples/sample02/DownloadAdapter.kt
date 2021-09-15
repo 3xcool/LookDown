@@ -72,7 +72,7 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
       }
       binding.itemDownTvProgress.text = progressMessage
       binding.itemDownProgress.progress = download.progress
-      binding.itemDownProgress.isIndeterminate = download.state == LDDownloadState.Queued //todo 10000
+      binding.itemDownProgress.isIndeterminate = download.state == LDDownloadState.Queued
       binding.itemDownTvIndex.text = (position +1).toString()
       
       binding.itemDownIvAction.setOnClickListener {

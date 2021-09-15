@@ -2,7 +2,6 @@ package com.andrefilgs.lookdown_android
 
 import android.content.Context
 import androidx.lifecycle.*
-import androidx.lifecycle.Observer
 import androidx.work.Operation
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -14,7 +13,6 @@ import com.andrefilgs.lookdown_android.LDGlobals.LD_DEFAULT_FOLDER
 import com.andrefilgs.lookdown_android.LDGlobals.LD_LOG_TAG
 import com.andrefilgs.lookdown_android.LDGlobals.LD_PROGRESS_RENDER_DELAY
 import com.andrefilgs.lookdown_android.LDGlobals.LD_TIMEOUT
-import com.andrefilgs.lookdown_android.LDGlobals.LD_WITH_SERVICE // import com.andrefilgs.lookdown_android.log.LDLogger
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.log.LDLogger
@@ -27,8 +25,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
 import java.util.*
-import com.andrefilgs.fileman.model.FilemanFeedback
-import com.andrefilgs.lookdown_android.wmservice.utils.getLDProgress
 import com.google.common.util.concurrent.ListenableFuture
 
 
@@ -59,7 +55,6 @@ class LookDown (
   private var progressRenderDelay:Long= LD_PROGRESS_RENDER_DELAY,
   private var activateLogs:Boolean = false,
   private var logTag:String = LD_LOG_TAG,
-  private var withService:Boolean = LD_WITH_SERVICE  //todo 1000
 ) {
   
   private val logger = LDLogger(showLogs = activateLogs, tag = logTag)
@@ -103,7 +98,6 @@ class LookDown (
     private var progressRenderDelay: Long= LD_PROGRESS_RENDER_DELAY
     private var activateLogs: Boolean= false
     private var logTag: String= LD_LOG_TAG
-    private var withService: Boolean= LD_WITH_SERVICE
     
     fun setId(id:String) {this.id = id }
     fun setDriver(driver:Int) {this.driver = driver}
@@ -118,13 +112,12 @@ class LookDown (
     fun activateLogs() {this.activateLogs = true}
     fun deactivateLogs() {this.activateLogs = false}
     fun setLogTag(logTag:String) {this.logTag = logTag}
-    fun setWithService(activateService:Boolean) {this.withService = activateService}
     
     
     fun build(): LookDown {
       return LookDown(context, id=id, driver= driver, folder= folder, resume= forceResume, headers= headers,
                       chunkSize= chunkSize, timeout= timeout, connectionTimeout=connectTimeout,
-        fileExtension=fileExtension, progressRenderDelay= progressRenderDelay, activateLogs = activateLogs, logTag= logTag, withService= withService)
+        fileExtension=fileExtension, progressRenderDelay= progressRenderDelay, activateLogs = activateLogs, logTag= logTag)
     }
   }
 
@@ -178,21 +171,28 @@ class LookDown (
     }
   }
   
-  /**
-   * Download any file
-   *
-   * Override DownloadWithFlow function with LDDownload as parameter
-   */
-  @ExperimentalCoroutinesApi
+  
+  
+  
   @InternalCoroutinesApi
-  suspend fun download(ldDownload: LDDownload){
+  /**
+   * @param asService to download using WorkManager and Foreground Service
+   * @param resume to start download from where it stopped
+   */
+  suspend fun download(ldDownload: LDDownload, asService:Boolean=false, resume: Boolean=this.resume):UUID?{
     try {
-      return  download(url = ldDownload.url!!, filename =  ldDownload.filename!!, fileExtension =  ldDownload.fileExtension ?: this.fileExtension, id = ldDownload.id,
-                       title = ldDownload.title, params = ldDownload.params, mLDDownload = ldDownload)
+      if(asService) return downloadAsService(ldDownload, resume)
+      
+      withContext(dispatcher.io) { //to avoid Inappropriate blocking method call
+        kotlin.runCatching {
+          downloadWithFlow(ldDownload, resume = resume)
+        }
+      }
     }catch (e:Exception){
       ldDownload.state = LDDownloadState.Error(e.message ?: e.localizedMessage)
       updateLDDownload(ldDownload)
     }
+    return null
   }
   
   @ExperimentalCoroutinesApi
@@ -207,112 +207,43 @@ class LookDown (
    * @param fileExtension* (e.g. ".mp4", ".png" ...)
    * @param title
    * @param params generic mutable map for any other needed property
+   * @param asService to download using WorkManager and Foreground Service
+   * @param resume to start download from where it stopped
    *
    */
   suspend fun download(url: String,
-                       filename: String,
-                       fileExtension: String = this.fileExtension,
-                       id: String? = null,
-                       title: String? = null,
-                       resume: Boolean = this.resume,
-                       params: MutableMap<String, String>? = null,
-                       mLDDownload: LDDownload?=null
-  ) {
-    withContext(dispatcher.io) { //to avoid Inappropriate blocking method call
-      kotlin.runCatching {
-        val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = url, filename = filename, title = title, params = params)
-        
-        flow {
-          logger.log("Checking download (file and connection): $url")
-          ldDownload.state = LDDownloadState.Queued
-          emit(ldDownload)
-  
-          val file = getFile(
-            filename,
-            "$fileExtension${LDGlobals.LD_TEMP_EXT}"
-          )
-          if (file == null) {
-            ldDownload.state = LDDownloadState.Error("File can't be null")
-            updateLDDownload(ldDownload)
-            return@flow
-          }
-          ldDownload.file = file
-  
-          val connection = remote.setup(
-            url = url,
-            resume = resume,
-            file = file,
-            headers = headers
-          )
-          if (connection == null) {
-            ldDownload.state = LDDownloadState.Error("Couldn't establish connection")
-            updateLDDownload(ldDownload)
-            return@flow
-          }
-  
-          remote.download(
-            connection= connection,
-            ldDownload= ldDownload,
-            file= file,
-            chunkSize= chunkSize,
-            resume= resume
-          ).collect {
-            emit(it)
-          }
-        }.catch { e->
-          logger.log("Catch ${e.printStackTrace()}")
-          ldDownload.state = LDDownloadState.Error("Catch: ${e.printStackTrace()}")
-          emit(ldDownload)
-          return@catch
-        }.flowOn(dispatcher.io).collect {
-          updateLDDownload(it, forceUpdate = ldDownload.state != LDDownloadState.Downloading)  //if it's downloading don't force update
+    filename: String,
+    fileExtension: String = this.fileExtension,
+    id: String? = null,
+    title: String? = null,
+    resume: Boolean = this.resume,
+    params: MutableMap<String, String>? = null,
+    lDDownload: LDDownload?=null,
+    asService:Boolean=false
+  ): UUID?{
+    val mLdDownload = lDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = url, filename = filename, title = title, params = params, fileExtension = fileExtension)
+    try {
+      if(asService) return downloadAsService(mLdDownload, resume)
+    
+      withContext(dispatcher.io) { //to avoid Inappropriate blocking method call
+        kotlin.runCatching {
+          downloadWithFlow(mLdDownload, resume= resume)
         }
-        
       }
+    }catch (e:Exception){
+      mLdDownload.state = LDDownloadState.Error(e.message ?: e.localizedMessage)
+      updateLDDownload(mLdDownload)
     }
+    return null
   }
-  
   
   //endregion
-  
-  private val serviceList : MutableMap<UUID, LDDownload> = mutableMapOf()
-  
-  private val _lookdownWorkFeedback = MutableLiveData<WorkInfo>()
-  
-  /**
-   * User will observe this LiveData
-   */
-  val ldDownloadLiveDataService: LiveData<LDDownload> = Transformations.switchMap(_lookdownWorkFeedback) { workInfo ->
-    val ldDownload = serviceList[workInfo.id]
-    ldDownload?.progress = workInfo.getLDProgress()
-    MutableLiveData(ldDownload)
-  }
-  
-
-  
-  private val observeWorkById = Observer<WorkInfo> { workInfo ->
-    if (workInfo == null) return@Observer
-    _lookdownWorkFeedback.value = workInfo
-  }
-
-  fun observeWork(id:UUID){
-    ldDownloadLiveDataService.observeForever{
-    }
-  }
-  
-  
-  fun clearObservers(){
-    serviceList.forEach { (id, _) ->
-      workManager.getWorkInfoByIdLiveData(id).removeObserver(observeWorkById)
-    }
-  }
-  
+ 
 
   //region Service
   
-  
-  suspend fun downloadAsService(ldDownload: LDDownload): UUID {
-    return ldWorkManagerController.startDownload(ldDownload)
+  suspend fun downloadAsService(ldDownload: LDDownload, resume:Boolean=this.resume): UUID {
+    return ldWorkManagerController.startDownload(ldDownload, resume)
   }
   
   fun getWorkInfoByLiveData(id:UUID):LiveData<WorkInfo>{
@@ -327,7 +258,6 @@ class LookDown (
     ldWorkManagerController.getWorkManager().pruneWork()
   }
   
-  
   /**
    * Download any file
    *
@@ -335,10 +265,10 @@ class LookDown (
    */
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
-  suspend fun downloadWithFlow(ldDownload: LDDownload): Flow<LDDownload>? {
+  suspend fun downloadWithFlow(ldDownload: LDDownload, resume:Boolean=this.resume): Flow<LDDownload>? {
     try {
       return  downloadWithFlow(url = ldDownload.url!!, filename =  ldDownload.filename!!, fileExtension =  ldDownload.fileExtension ?: this.fileExtension, id = ldDownload.id,
-        title = ldDownload.title, params = ldDownload.params, mLDDownload = ldDownload)
+        title = ldDownload.title, params = ldDownload.params, mLDDownload = ldDownload, resume = resume)
     }catch (e:Exception){
       ldDownload.state = LDDownloadState.Error(e.message ?: e.localizedMessage)
       updateLDDownload(ldDownload)

@@ -33,7 +33,6 @@ object LookDownModule {
       setConnectTimeout(5000)
       setProgressRenderDelay(500L)
       setLogTag("LookDown")
-      // setWithService(true) //todo 1000
       activateLogs()
     }
   }
