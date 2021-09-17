@@ -13,5 +13,3 @@ sealed class LDDownloadState{
   object Downloaded : LDDownloadState()
   data class Error(val message: String) : LDDownloadState()
 }
-
-
