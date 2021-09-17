@@ -58,7 +58,7 @@ dependencies {
 
     implementation 'com.3xcool.utility:coroexecutor:0.1.0'
     implementation 'com.3xcool.utility:fileman:2.1.5'
-    implementation project (':lookdown_android')
+    implementation project (':lookdown')
 
     //Dagger - Hilt
     def dagger_version = "2.37"
