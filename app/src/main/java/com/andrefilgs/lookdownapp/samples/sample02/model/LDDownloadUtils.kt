@@ -2,9 +2,9 @@ package com.andrefilgs.lookdownapp.samples.sample02.model
 
 import android.content.Context
 import com.andrefilgs.fileman.Fileman
-import com.andrefilgs.lookdown_android.LDGlobals
-import com.andrefilgs.lookdown_android.domain.LDDownload
-import com.andrefilgs.lookdown_android.domain.LDDownloadState
+import com.andrefilgs.lookdown.LDGlobals
+import com.andrefilgs.lookdown.domain.LDDownload
+import com.andrefilgs.lookdown.domain.LDDownloadState
 import com.andrefilgs.lookdownapp.app.AppLogger
 import java.io.File
 import java.lang.Exception

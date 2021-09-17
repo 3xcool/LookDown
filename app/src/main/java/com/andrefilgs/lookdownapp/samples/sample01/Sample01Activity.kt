@@ -5,9 +5,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
-import com.andrefilgs.lookdown_android.LDGlobals
-import com.andrefilgs.lookdown_android.domain.LDDownloadState
-import com.andrefilgs.lookdown_android.domain.LDDownload
+import com.andrefilgs.lookdown.LDGlobals
+import com.andrefilgs.lookdown.domain.LDDownloadState
+import com.andrefilgs.lookdown.domain.LDDownload
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.databinding.ActivitySample01Binding
 import com.andrefilgs.lookdownapp.samples.sample02.takeatour

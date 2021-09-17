@@ -1,7 +1,7 @@
 package com.andrefilgs.lookdownapp.samples.sample02
 
-import com.andrefilgs.lookdown_android.domain.LDDownload
-import com.andrefilgs.lookdown_android.domain.LDDownloadState
+import com.andrefilgs.lookdown.domain.LDDownload
+import com.andrefilgs.lookdown.domain.LDDownloadState
 
 val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"
 // private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"

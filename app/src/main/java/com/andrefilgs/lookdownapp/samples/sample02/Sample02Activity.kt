@@ -10,8 +10,8 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xcool.coroexecutor.core.ExecutorSchema
-import com.andrefilgs.lookdown_android.domain.LDDownload
-import com.andrefilgs.lookdown_android.domain.LDDownloadState
+import com.andrefilgs.lookdown.domain.LDDownload
+import com.andrefilgs.lookdown.domain.LDDownloadState
 import com.andrefilgs.lookdownapp.R
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.databinding.ActivitySample02Binding

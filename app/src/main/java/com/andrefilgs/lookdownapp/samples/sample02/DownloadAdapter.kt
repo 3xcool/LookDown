@@ -2,13 +2,11 @@ package com.andrefilgs.lookdownapp.samples.sample02
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.recyclerview.widget.AsyncListDiffer
-import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.andrefilgs.lookdown_android.domain.LDDownload
-import com.andrefilgs.lookdown_android.domain.LDDownloadState
-import com.andrefilgs.lookdown_android.utils.formatFileSize
+import com.andrefilgs.lookdown.domain.LDDownload
+import com.andrefilgs.lookdown.domain.LDDownloadState
+import com.andrefilgs.lookdown.utils.formatFileSize
 import com.andrefilgs.lookdownapp.databinding.ItemDownloadBinding
 
 

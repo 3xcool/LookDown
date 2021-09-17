@@ -1,9 +1,8 @@
 package com.andrefilgs.lookdownapp.samples.sample02.di
 
 import android.content.Context
-import androidx.lifecycle.LifecycleOwner
-import com.andrefilgs.lookdown_android.LDGlobals
-import com.andrefilgs.lookdown_android.LookDown
+import com.andrefilgs.lookdown.LDGlobals
+import com.andrefilgs.lookdown.LookDown
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

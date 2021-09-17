@@ -1,5 +1,6 @@
 package com.andrefilgs.lookdown.domain
 
+import com.xcool.lookdown.R
 import java.io.File
 import java.util.*
 
@@ -7,7 +8,7 @@ import java.util.*
  * @author André Filgueiras on 28/11/2020
  *
  *
- *
+ * @param workId form WorkManager service identification
  * @param params generic mutable map for any other needed property
  */
 data class LDDownload(
@@ -23,6 +24,7 @@ data class LDDownload(
   var state: LDDownloadState? = LDDownloadState.Empty,
   var feedback: String? = null,
   var title: String? = null,
+  var workId: UUID? = null,
   var params: MutableMap<String, String>? = null,
 ){
   
@@ -31,11 +33,26 @@ data class LDDownload(
     return true
   }
   
+  fun getDownloadStateImage(): Int {
+    return when(this.state){
+      LDDownloadState.Empty       -> R.drawable.ld_ic_download_24
+      LDDownloadState.Queued      -> R.drawable.ld_ic_queue_24
+      LDDownloadState.Downloading -> R.drawable.ld_ic_pause_24
+      LDDownloadState.Paused      -> R.drawable.ld_ic_restart_24
+      LDDownloadState.Incomplete  -> R.drawable.ld_ic_restart_24
+      LDDownloadState.Downloaded  -> R.drawable.ld_ic_delete_24
+      is LDDownloadState.Error       -> R.drawable.ld_ic_error_24
+      else                        ->  R.drawable.ld_ic_download_24
+    }
+  }
   
   fun getCurrentDownloadState(progressChanged:Boolean = false): LDDownloadState {
     if(!progressChanged){
+      if(this.state == LDDownloadState.Paused) return LDDownloadState.Paused
+      if(this.state == LDDownloadState.Queued) return LDDownloadState.Queued
+      if(this.state == LDDownloadState.Incomplete) return LDDownloadState.Incomplete
       if(this.state == LDDownloadState.Downloading && this.progress < 100) return LDDownloadState.Downloading
-      return this.state ?: LDDownloadState.Empty
+      if(this.state is LDDownloadState.Error) return this.state as LDDownloadState.Error
     }
     return getStateByProgress(this.progress)
   }

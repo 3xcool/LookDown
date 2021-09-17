@@ -2,14 +2,14 @@ package com.andrefilgs.lookdownapp.samples.sample01
 
 import androidx.lifecycle.*
 import com.xcool.coroexecutor.core.Executor
-import com.andrefilgs.lookdown_android.LDGlobals.LD_DEFAULT_DRIVER
-import com.andrefilgs.lookdown_android.LDGlobals.LD_DEFAULT_FOLDER
-import com.andrefilgs.lookdown_android.LookDown
-import com.andrefilgs.lookdown_android.domain.LDDownloadState
-import com.andrefilgs.lookdown_android.domain.LDDownload
+import com.andrefilgs.lookdown.LDGlobals.LD_DEFAULT_DRIVER
+import com.andrefilgs.lookdown.LDGlobals.LD_DEFAULT_FOLDER
+import com.andrefilgs.lookdown.LookDown
+import com.andrefilgs.lookdown.domain.LDDownloadState
+import com.andrefilgs.lookdown.domain.LDDownload
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.utils.BaseViewModel
-import com.andrefilgs.lookdown_android.utils.orDefault
+import com.andrefilgs.lookdown.utils.orDefault
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import javax.inject.Inject
