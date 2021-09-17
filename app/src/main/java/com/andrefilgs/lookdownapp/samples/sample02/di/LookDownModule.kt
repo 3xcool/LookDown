@@ -37,6 +37,7 @@ object LookDownModule {
     }
   }
   
+  @ExperimentalCoroutinesApi
   @Provides
   @Singleton
   fun providesLookDown(builder: LookDown.Builder):LookDown{

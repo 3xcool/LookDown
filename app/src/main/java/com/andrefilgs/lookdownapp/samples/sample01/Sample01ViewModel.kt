@@ -20,6 +20,7 @@ import javax.inject.Inject
  *
  */
 
+@ExperimentalCoroutinesApi
 @HiltViewModel
 class Sample01ViewModel @Inject constructor(
   private val lookDown: LookDown,
@@ -53,10 +54,12 @@ class Sample01ViewModel @Inject constructor(
   }
   
   
+  @ExperimentalCoroutinesApi
   fun setChunkSize(chunkSize:Int){
     lookDown.setChunkSize(chunkSize)
   }
   
+  @ExperimentalCoroutinesApi
   fun stopDownload() {
     baseCoroutineScope.launch {
       for((key, value) in jobsList){
@@ -95,7 +98,6 @@ class Sample01ViewModel @Inject constructor(
   @InternalCoroutinesApi
   fun downloadWithFlow(url:String, resume:Boolean){
     val job = baseCoroutineScope.launch(Dispatchers.IO) {
-      // LookDownLite.download(context, url, filename, extension, null, driver, folder, resume)
       lookDown.download(url= url,filename= filename, fileExtension= extension, resume=resume)
     }
     jobsList[filename] = job

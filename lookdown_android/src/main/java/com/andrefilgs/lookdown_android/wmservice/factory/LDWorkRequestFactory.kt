@@ -1,6 +1,5 @@
 package com.andrefilgs.lookdown_android.wmservice.factory
 
-import android.app.NotificationManager.IMPORTANCE_MIN
 import androidx.work.*
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.wmservice.utils.*

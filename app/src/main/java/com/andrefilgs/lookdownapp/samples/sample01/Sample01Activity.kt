@@ -10,17 +10,13 @@ import com.andrefilgs.lookdown_android.domain.LDDownloadState
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdownapp.app.AppLogger
 import com.andrefilgs.lookdownapp.databinding.ActivitySample01Binding
+import com.andrefilgs.lookdownapp.samples.sample02.takeatour
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.InternalCoroutinesApi
 
 @AndroidEntryPoint
 class Sample01Activity : AppCompatActivity() {
-  
-  private val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"
-  // private val takeatour = "https://tekmoon.com/spaces/takeATour.mp4"
-  // private val 3xCoolEVT = "https://tekmoon.com/spaces/images/3XCool_evt.png"
-  
   
   private var _binding: ActivitySample01Binding? = null
   private val binding get() = _binding!!

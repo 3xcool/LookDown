@@ -1,6 +1,5 @@
 package com.andrefilgs.lookdownapp.samples.sample02
 
-import android.app.NotificationManager
 import android.content.Context
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
@@ -30,8 +29,6 @@ import kotlinx.coroutines.flow.StateFlow
 import java.util.*
 import javax.inject.Inject
 
-//Transformations: https://proandroiddev.com/livedata-transformations-4f120ac046fc
-
 
 
 @ExperimentalCoroutinesApi
@@ -42,7 +39,7 @@ class DownloadViewModel @Inject constructor(
   ): BaseViewModel(executor) {
   
   companion object{
-    const val KEY_POSITION ="position"
+    const val KEY_POSITION = "position"
     val driver = LDGlobals.LD_DEFAULT_DRIVER
     val folder = LDGlobals.LD_DEFAULT_FOLDER
   }
@@ -54,7 +51,6 @@ class DownloadViewModel @Inject constructor(
     lookDown.pruneWork()
   }
 
- private val workDelay = 1000L
   
   //Executor schema
   private var _schema = MutableStateFlow<ExecutorSchema>(ExecutorSchema.Queue)
@@ -70,7 +66,7 @@ class DownloadViewModel @Inject constructor(
   }
   
   
-  //Turn around for Conflate
+  //Workaround for Conflate
   private var workingJobList: MutableMap<String, Triple<ExecutorSchema, Job, LDDownload>> = mutableMapOf()
   
   

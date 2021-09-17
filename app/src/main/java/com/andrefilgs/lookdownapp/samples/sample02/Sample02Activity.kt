@@ -31,6 +31,8 @@ class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterV
   
   private lateinit var downAdapter: DownloadAdapter
   
+  private val KEY_POSITION ="position"
+  
   @ExperimentalCoroutinesApi
   private val viewModel : DownloadViewModel by viewModels()
   
@@ -132,8 +134,7 @@ class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterV
       else                        -> {
         if( download.state is LDDownloadState.Error) {
           viewModel.refreshState(download)
-          // viewModel.startDownload(this, download, position, withService)
-        }  //error can be triggered if using Conflate cause Coroutine will cancel this download automatically
+        }
       }
     }
     
@@ -154,18 +155,9 @@ class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterV
         AppLogger.log("Trigger render received ldDownload with state ${download?.state}")
         download?.let {
           downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt())
-          
-          // if(download.state is LDDownloadState.Error) viewModel.refreshState(it)
         }
       }
     })
-  
-    // viewModel.ldDownloadService.observe(this, { event ->
-    //   event.getContentIfNotHandled().let { download ->
-    //     AppLogger.log("Trigger render received ldDownload as service")
-    //     download?.let { downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt()) }
-    //   }
-    // })
   }
   
   

@@ -63,7 +63,7 @@ class LookDown (
   
   private val workManager = WorkManager.getInstance(context)
   
-  private val ldWorkManagerController: LDWorkManagerController = LDWorkManagerController(workManager, this.logger)
+  private val ldWorkManagerController: LDWorkManagerController = LDWorkManagerController(workManager)
   
 
   

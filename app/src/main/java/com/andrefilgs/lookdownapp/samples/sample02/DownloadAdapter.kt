@@ -39,7 +39,6 @@ class DownloadAdapter (private val listener: DownloadListener) : RecyclerView.Ad
         item.state = download.state
       }
       notifyItemChanged(position)
-      // notifyDataSetChanged() // don't use this one
     }
   }
   

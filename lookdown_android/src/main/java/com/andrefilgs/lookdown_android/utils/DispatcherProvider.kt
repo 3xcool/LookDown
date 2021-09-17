@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 
 
-//See TestDispatcher Class at Test folder
 class StandardDispatchers : DispatcherProvider{
   override val main: CoroutineDispatcher
     get() = Dispatchers.Main
@@ -14,7 +13,6 @@ class StandardDispatchers : DispatcherProvider{
     get() = Dispatchers.Default
   override val unconfined: CoroutineDispatcher
     get() = Dispatchers.Unconfined
-  
 }
 
 
