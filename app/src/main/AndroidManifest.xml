@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-  package="com.xcool.lookdownapp">
-  
-  <uses-permission android:name="android.permission.INTERNET"/>
+  xmlns:tools="http://schemas.android.com/tools"
+  package="com.andrefilgs.lookdownapp">
   
   <application
     android:name=".app.MyApp"
@@ -12,6 +11,7 @@
     android:roundIcon="@mipmap/ic_launcher_round"
     android:supportsRtl="true"
     android:theme="@style/Theme.LookDown">
+
     <activity android:name=".samples.sample02.Sample02Activity" />
     <activity android:name=".samples.sample01.Sample01Activity" />
     <activity android:name=".MainActivity">
@@ -21,6 +21,23 @@
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
     </activity>
+  
+    <!--Remove Default WorkManager Initializer    -->
+<!--    <provider-->
+<!--      android:name="androidx.startup.InitializationProvider"-->
+<!--      android:authorities="${applicationId}.androidx-startup"-->
+<!--      android:exported="false"-->
+<!--      tools:node="merge">-->
+<!--      &lt;!&ndash; If you are using androidx.startup to initialize other components &ndash;&gt;-->
+<!--      <meta-data-->
+<!--        android:name="androidx.work.WorkManagerInitializer"-->
+<!--        android:value="androidx.startup"-->
+<!--        tools:node="remove" />-->
+<!--    </provider>-->
   </application>
+  
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
 </manifest>

@@ -5,7 +5,7 @@
   android:layout_width="match_parent"
   android:layout_height="match_parent"
   android:padding="@dimen/act_padding"
-  tools:context=".samples.sample01.Sample01Activity">
+  tools:context="com.andrefilgs.lookdownapp.samples.sample01.Sample01Activity">
   
   <LinearLayout
     android:id="@+id/ll_chunksize"
@@ -21,8 +21,8 @@
     <TextView
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
-      android:layout_marginRight="10dp"
-      android:text="Chunk Size"
+      android:layout_marginEnd="10dp"
+      android:text="@string/chunk_size"
       android:textAllCaps="true"
       android:textColor="#000000"
       android:textSize="16sp"
@@ -32,7 +32,7 @@
       android:id="@+id/btn_decrease_chunck"
       android:layout_width="48dp"
       android:layout_height="48dp"
-      android:text="-"
+      android:text="@string/minus"
       />
     
     <TextView
@@ -45,13 +45,13 @@
       android:textAllCaps="true"
       android:textColor="#000000"
       android:textSize="16sp"
-      />
+      tools:ignore="HardcodedText" />
     
     <Button
       android:id="@+id/btn_increase_chunck"
       android:layout_width="48dp"
       android:layout_height="48dp"
-      android:text="+"
+      android:text="@string/plus"
       />
   
   </LinearLayout>
@@ -61,7 +61,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_marginTop="@dimen/act_padding"
-    android:text="Delete"
+    android:text="@string/delete"
     app:layout_constraintEnd_toStartOf="@id/btn_cancel"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toBottomOf="@id/ll_chunksize" />
@@ -71,7 +71,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_marginTop="@dimen/act_padding"
-    android:text="Cancel"
+    android:text="@string/cancel"
     app:layout_constraintEnd_toStartOf="@id/btn_resume"
     app:layout_constraintStart_toEndOf="@id/btn_delete"
     app:layout_constraintTop_toBottomOf="@id/ll_chunksize" />
@@ -82,7 +82,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_marginStart="8dp"
-    android:text="Resume"
+    android:text="@string/resume"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toEndOf="@+id/btn_cancel"
     app:layout_constraintTop_toTopOf="@+id/btn_cancel" />
@@ -93,8 +93,8 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_marginTop="@dimen/act_padding"
-    android:text="Download"
-    app:layout_constraintEnd_toStartOf="@id/switch_show_progress"
+    android:text="@string/download"
+    app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toBottomOf="@id/btn_cancel" />
   
@@ -142,15 +142,5 @@
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toTopOf="parent"
     tools:text="Output" />
-  
-  <com.google.android.material.switchmaterial.SwitchMaterial
-    android:id="@+id/switch_show_progress"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:text="Show Progress"
-    app:layout_constraintBottom_toBottomOf="@id/btn_download"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintStart_toEndOf="@id/btn_download"
-    app:layout_constraintTop_toTopOf="@id/btn_download"
-    tools:checked="true" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
