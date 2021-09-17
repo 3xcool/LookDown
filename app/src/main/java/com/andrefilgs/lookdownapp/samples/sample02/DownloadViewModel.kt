@@ -1,5 +1,6 @@
 package com.andrefilgs.lookdownapp.samples.sample02
 
+import android.app.NotificationManager
 import android.content.Context
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
@@ -119,9 +120,9 @@ class DownloadViewModel @Inject constructor(
   }
   
   
-  fun stopAllServices(){
+  private fun stopAllServices(){
     serviceList.forEach { (k,v) ->
-      lookDown.cancelDownloadService(v.workId!!)
+      stopServiceById(v)
     }
   }
   
@@ -206,11 +207,10 @@ class DownloadViewModel @Inject constructor(
   private suspend fun downloadFile(lifecycleOwner: LifecycleOwner, ldDownload: LDDownload, withService:Boolean){
     if(ldDownload.validateInfoForDownloading()){
       if(withService) {
-        val workId = lookDown.downloadAsService(ldDownload)
+        val workId = lookDown.downloadAsService(ldDownload,notificationId = null, notificationImportance = 4) // 4 = NotificationManager.IMPORTANCE_HIGH and pass notificationId null to let LookDown counter handle it
         ldDownload.workId = workId
-        // val uuid = UUID.fromString(ldDownload.id)
         serviceList[ldDownload.id] = ldDownload
-        observeWorkService(lifecycleOwner, workId)  //Download Work
+        observeWorkService(lifecycleOwner, workId)
       } else {
         lookDown.download(ldDownload)
       }

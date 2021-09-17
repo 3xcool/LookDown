@@ -179,13 +179,15 @@ class LookDown (
    * @param asService to download using WorkManager and Foreground Service
    * @param resume to start download from where it stopped
    */
-  suspend fun download(ldDownload: LDDownload, asService:Boolean=false, resume: Boolean=this.resume):UUID?{
+  suspend fun download(ldDownload: LDDownload, resume: Boolean=this.resume):UUID?{
     try {
-      if(asService) return downloadAsService(ldDownload, resume)
+      if(!ldDownload.validateInfoForDownloading()) throw Exception("Invalid or missing data")
       
       withContext(dispatcher.io) { //to avoid Inappropriate blocking method call
         kotlin.runCatching {
-          downloadWithFlow(ldDownload, resume = resume)
+          downloadWithFlow(ldDownload, resume = resume)?.collect {
+            updateLDDownload(it, forceUpdate = ldDownload.state != LDDownloadState.Downloading)  //if it's downloading don't force update
+          }
         }
       }
     }catch (e:Exception){
@@ -219,15 +221,14 @@ class LookDown (
     resume: Boolean = this.resume,
     params: MutableMap<String, String>? = null,
     lDDownload: LDDownload?=null,
-    asService:Boolean=false
   ): UUID?{
     val mLdDownload = lDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = url, filename = filename, title = title, params = params, fileExtension = fileExtension)
     try {
-      if(asService) return downloadAsService(mLdDownload, resume)
-    
       withContext(dispatcher.io) { //to avoid Inappropriate blocking method call
         kotlin.runCatching {
-          downloadWithFlow(mLdDownload, resume= resume)
+          downloadWithFlow(mLdDownload, resume= resume)?.collect { lDDownload ->
+            updateLDDownload(lDDownload, forceUpdate = lDDownload.state != LDDownloadState.Downloading)  //if it's downloading don't force update
+          }
         }
       }
     }catch (e:Exception){
@@ -242,8 +243,42 @@ class LookDown (
 
   //region Service
   
-  suspend fun downloadAsService(ldDownload: LDDownload, resume:Boolean=this.resume): UUID {
-    return ldWorkManagerController.startDownload(ldDownload, resume)
+  /**
+   * Download File using WorkManager + Foreground Service
+   *
+   * @param notificationId to avoid Notification collision
+   * @param notificationImportance can be 1 up to 4 being MIN = 1 / LOW = 2 / DEFAULT =3 / HIGH = 4
+   * @param allowCancel allow Notification to cancel WorkManager Service
+   */
+  suspend fun downloadAsService(
+    url: String,
+    filename: String,
+    fileExtension: String = this.fileExtension,
+    id: String? = null,
+    title: String? = null,
+    resume: Boolean = this.resume,
+    params: MutableMap<String, String>? = null,
+    lDDownload: LDDownload?=null,
+    notificationId:Int?=null,
+    notificationImportance:Int?=null,
+    allowCancel:Boolean?=null
+  ): UUID {
+    val mLdDownload = lDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = url, filename = filename, fileExtension=fileExtension, title = title, params = params)
+    if(!mLdDownload.validateInfoForDownloading()) throw Exception("Invalid or missing data")
+    return ldWorkManagerController.startDownload(mLdDownload, resume, notificationId=notificationId, notificationImportance = notificationImportance, allowCancel = allowCancel)
+  }
+  
+  
+  /**
+   * Download File using WorkManager + Foreground Service
+   *
+   * @param notificationId to avoid Notification collision
+   * @param notificationImportance can be 1 up to 4 being MIN = 1 / LOW = 2 / DEFAULT =3 / HIGH = 4
+   * @param allowCancel allow Notification to cancel WorkManager Service
+   */
+  suspend fun downloadAsService(ldDownload: LDDownload, resume:Boolean=this.resume, notificationId:Int?=null, notificationImportance:Int?=null, allowCancel:Boolean?=null): UUID {
+    if(!ldDownload.validateInfoForDownloading()) throw Exception("Invalid or missing data")
+    return ldWorkManagerController.startDownload(ldDownload, resume, notificationId=notificationId, notificationImportance = notificationImportance, allowCancel = allowCancel)
   }
   
   fun getWorkInfoByLiveData(id:UUID):LiveData<WorkInfo>{
@@ -268,7 +303,7 @@ class LookDown (
   suspend fun downloadWithFlow(ldDownload: LDDownload, resume:Boolean=this.resume): Flow<LDDownload>? {
     try {
       return  downloadWithFlow(url = ldDownload.url!!, filename =  ldDownload.filename!!, fileExtension =  ldDownload.fileExtension ?: this.fileExtension, id = ldDownload.id,
-        title = ldDownload.title, params = ldDownload.params, mLDDownload = ldDownload, resume = resume)
+                               title = ldDownload.title, params = ldDownload.params, lDDownload = ldDownload, resume = resume)
     }catch (e:Exception){
       ldDownload.state = LDDownloadState.Error(e.message ?: e.localizedMessage)
       updateLDDownload(ldDownload)
@@ -292,63 +327,60 @@ class LookDown (
    *
    */
   suspend fun downloadWithFlow(url: String,
-    filename: String,
-    fileExtension: String = this.fileExtension,
-    id: String? = null,
-    title: String? = null,
-    resume: Boolean = this.resume,
-    params: MutableMap<String, String>? = null,
-    mLDDownload: LDDownload?=null
+                               filename: String,
+                               fileExtension: String = this.fileExtension,
+                               id: String? = null,
+                               title: String? = null,
+                               resume: Boolean = this.resume,
+                               params: MutableMap<String, String>? = null,
+                               lDDownload: LDDownload?=null
   ) :Flow<LDDownload>{
-    // withContext(dispatcher.io) { //to avoid Inappropriate blocking method call
-    //   kotlin.runCatching {
-        val ldDownload = mLDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = url, filename = filename, title = title, params = params)
-        
-        return flow {
-          logger.log("Checking download (file and connection): $url")
-          ldDownload.state = LDDownloadState.Queued
-          emit(ldDownload)
-          
-          val file = getFile(
-            filename,
-            "$fileExtension${LDGlobals.LD_TEMP_EXT}"
-          )
-          if (file == null) {
-            ldDownload.state = LDDownloadState.Error("File can't be null")
-            updateLDDownload(ldDownload)
-            return@flow
-          }
-          ldDownload.file = file
-          
-          val connection = remote.setup(
-            url = url,
-            resume = resume,
-            file = file,
-            headers = headers
-          )
-          if (connection == null) {
-            ldDownload.state = LDDownloadState.Error("Couldn't establish connection")
-            updateLDDownload(ldDownload)
-            return@flow
-          }
-          
-          remote.download(
-            connection= connection,
-            ldDownload= ldDownload,
-            file= file,
-            chunkSize= chunkSize,
-            resume= resume
-          ).collect {
-            emit(it)
-          }
-        }.catch { e->
-          logger.log("Catch ${e.printStackTrace()}")
-          ldDownload.state = LDDownloadState.Error("Catch: ${e.printStackTrace()}")
-          emit(ldDownload)
-          return@catch
-        }.flowOn(dispatcher.io)
-      // }
-    // }
+
+    val mLdDownload = lDDownload ?: LDDownload(id = id ?: UUID.randomUUID().toString(), url = url, filename = filename, fileExtension=fileExtension, title = title, params = params)
+    
+    return flow {
+      logger.log("Checking download (file and connection): $url")
+      mLdDownload.state = LDDownloadState.Queued
+      emit(mLdDownload)
+      
+      val file = getFile(
+        filename,
+        "$fileExtension${LDGlobals.LD_TEMP_EXT}"
+      )
+      if (file == null) {
+        mLdDownload.state = LDDownloadState.Error("File can't be null")
+        updateLDDownload(mLdDownload)
+        return@flow
+      }
+      mLdDownload.file = file
+      
+      val connection = remote.setup(
+        url = url,
+        resume = resume,
+        file = file,
+        headers = headers
+      )
+      if (connection == null) {
+        mLdDownload.state = LDDownloadState.Error("Couldn't establish connection")
+        updateLDDownload(mLdDownload)
+        return@flow
+      }
+      
+      remote.download(
+        connection= connection,
+        ldDownload= mLdDownload,
+        file= file,
+        chunkSize= chunkSize,
+        resume= resume
+      ).collect {
+        emit(it)
+      }
+    }.catch { e->
+      logger.log("Catch ${e.printStackTrace()}")
+      mLdDownload.state = LDDownloadState.Error("Catch: ${e.printStackTrace()}")
+      emit(mLdDownload)
+      return@catch
+    }.flowOn(dispatcher.io)
   }
   
   

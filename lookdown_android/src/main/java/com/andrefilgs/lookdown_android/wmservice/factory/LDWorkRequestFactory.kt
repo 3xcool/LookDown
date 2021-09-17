@@ -1,5 +1,6 @@
 package com.andrefilgs.lookdown_android.wmservice.factory
 
+import android.app.NotificationManager.IMPORTANCE_MIN
 import androidx.work.*
 import com.andrefilgs.lookdown_android.domain.LDDownload
 import com.andrefilgs.lookdown_android.wmservice.utils.*
@@ -35,15 +36,18 @@ class LDWorkRequestFactory {
     }
 
   
-    fun buildDownloadWorkerOneTime(ldDownload: LDDownload, notificationId:Int=0, resume:Boolean, tag:String = WORK_TAG_DOWNLOAD): OneTimeWorkRequest {
+    fun buildDownloadWorkerOneTime(ldDownload: LDDownload, resume: Boolean, tag: String = WORK_TAG_DOWNLOAD, notificationId: Int, notificationImportance: Int, allowCancel: Boolean): OneTimeWorkRequest {
       val inputData = Data.Builder().apply {
         putLDInitTime(System.currentTimeMillis())
         putLDUrl(ldDownload.url!!)
         putLDFilename(ldDownload.filename!!)
+        putLDFileExtension(ldDownload.fileExtension!!)
         putLDTitle(ldDownload.title)
         putLDId(ldDownload.id)
-        putLDNotificationId(notificationId)
         putLDResume(resume)
+        putLDNotificationId(notificationId)
+        putLdNotificationImportance(notificationImportance )
+        putLDAllowWorkCancel(allowCancel)
       }
       
       return OneTimeWorkRequest.Builder(LDDownloadWorker::class.java)
