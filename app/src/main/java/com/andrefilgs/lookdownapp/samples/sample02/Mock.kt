@@ -8,9 +8,9 @@ val takeatour = "https://www.dropbox.com/s/exjzq4qhcpatylm/takeatour.mp4?dl=1"
 
 fun buildFakeLDDownloadList(): MutableList<LDDownload> {
   val mutableList = mutableListOf<LDDownload>()
-  for (i in 1..15) {
+  for (i in 0..14) {
     mutableList.add(
-      LDDownload(id= i.toString(), url = takeatour, filename = "Take a Tour $i", fileExtension = ".mp4", progress = 0, state = LDDownloadState.Empty, title = "Filename $i"
+      LDDownload(id= i.toString(), url = takeatour, filename = "Take a Tour ${i+1}", fileExtension = ".mp4", progress = 0, state = LDDownloadState.Empty, title = "Filename ${i+1}"
     )
     )
   }

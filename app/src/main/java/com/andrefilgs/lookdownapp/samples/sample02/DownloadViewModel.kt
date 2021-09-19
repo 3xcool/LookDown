@@ -38,19 +38,22 @@ class DownloadViewModel @Inject constructor(
   executor: Executor,
   ): BaseViewModel(executor) {
   
+  private val serviceList : MutableMap<String, LDDownload> = mutableMapOf()  //key will be LDDownload ID
+  private val dispatchers = StandardDispatchers()
+  
   companion object{
     const val KEY_POSITION = "position"
     val driver = LDGlobals.LD_DEFAULT_DRIVER
     val folder = LDGlobals.LD_DEFAULT_FOLDER
   }
   
-  private val dispatchers = StandardDispatchers()
+
   
 
   init {
-    lookDown.pruneWork()
+    // lookDown.pruneWork()
   }
-
+  
   
   //Executor schema
   private var _schema = MutableStateFlow<ExecutorSchema>(ExecutorSchema.Queue)
@@ -59,6 +62,7 @@ class DownloadViewModel @Inject constructor(
   private var _list = MutableLiveData<Event<MutableList<LDDownload>>>()
   var list: LiveData<Event<MutableList<LDDownload>>> = _list
   
+  var currentDownloadList :MutableList<LDDownload> =  buildFakeLDDownloadList()
 
   //LookDown LiveData
   val ldDownload: LiveData<Event<LDDownload>> = Transformations.map(lookDown.ldDownloadLiveData) {
@@ -72,12 +76,14 @@ class DownloadViewModel @Inject constructor(
   
   fun buildList(context:Context){
     baseCoroutineScope.launch(dispatchers.io) {
-      val list = LDDownloadUtils.checkFileExists(context, driver, folder, buildFakeLDDownloadList())
+      val list = LDDownloadUtils.checkFileExists(context, driver, folder, currentDownloadList)
       withContext(dispatchers.main){
         _list.value = Event(list)
       }
     }
   }
+  
+  
   
   private fun removeJob(download: LDDownload) {
     workingJobList.remove(download.id)
@@ -89,6 +95,38 @@ class DownloadViewModel @Inject constructor(
       _schema.value = schema
     }
   }
+  
+  
+  /**
+   * To get current running Works
+   */
+  fun getCurrentWorks(lifecycleOwner: LifecycleOwner){
+    baseCoroutineScope.launch(dispatchers.io) {
+      lookDown.getCurrentWorks()?.forEach {workInfo ->
+        AppLogger.log("$workInfo")
+        updateServiceList(workInfo)
+        observeWorkService(lifecycleOwner, workId = workInfo.id)
+      }
+    }
+  }
+  
+  
+  private fun updateServiceList(workInfo: WorkInfo) {
+    val data = when(workInfo.state) {
+      WorkInfo.State.RUNNING -> workInfo.progress
+      else -> workInfo.outputData
+    }
+    data.getLDId()?.let { ldId ->
+      if(serviceList[ldId] == null){
+        AppLogger.log("Update Service List with LookDown ID ${data.getLDId()}")
+        val ldDownload = currentDownloadList[ldId.toInt()]
+        ldDownload.workId = workInfo.id  //don't forget to get WorkManager ID
+        serviceList[ldId] = currentDownloadList[ldId.toInt()]
+      }
+    }
+  }
+  
+  
   
   fun stopDownload(download: LDDownload, position: Int, withService:Boolean? = false) {
     launch(schema.value) {
@@ -168,7 +206,7 @@ class DownloadViewModel @Inject constructor(
       val job = launch(schema.value) {
         withContext(dispatchers.io) {
           AppLogger.log("Start download file ${download.title} with progress ${download.progress}")
-          downloadFile(lifecycleOwner, download, withService)
+          downloadFile(lifecycleOwner, download, withService, notificationId = position+1)
           AppLogger.log("Finished download file ${download.title} with progress ${download.progress}")
         }
       }
@@ -197,13 +235,11 @@ class DownloadViewModel @Inject constructor(
     }
   }
   
-  private val serviceList : MutableMap<String, LDDownload> = mutableMapOf()  //key will be LDDownload ID
-  
   @InternalCoroutinesApi
-  private suspend fun downloadFile(lifecycleOwner: LifecycleOwner, ldDownload: LDDownload, withService:Boolean){
+  private suspend fun downloadFile(lifecycleOwner: LifecycleOwner, ldDownload: LDDownload, withService:Boolean, notificationId:Int){
     if(ldDownload.validateInfoForDownloading()){
       if(withService) {
-        val workId = lookDown.downloadAsService(ldDownload,notificationId = null, notificationImportance = 4) // 4 = NotificationManager.IMPORTANCE_HIGH and pass notificationId null to let LookDown counter handle it
+        val workId = lookDown.downloadAsService(ldDownload, notificationId = notificationId, notificationImportance = 4) // 4 = NotificationManager.IMPORTANCE_HIGH and pass notificationId null to let LookDown counter handle it
         ldDownload.workId = workId
         serviceList[ldDownload.id] = ldDownload
         observeWorkService(lifecycleOwner, workId)
@@ -218,6 +254,7 @@ class DownloadViewModel @Inject constructor(
   
   
   private suspend fun observeWorkService(lifecycleOwner: LifecycleOwner, workId:UUID){
+    AppLogger.log("Observe Work ID $workId")
     withContext(dispatchers.main){
       lookDown.getWorkInfoByLiveData(workId).observe(lifecycleOwner){ workInfo ->
         AppLogger.log("Received workInfo $workInfo")
@@ -226,11 +263,11 @@ class DownloadViewModel @Inject constructor(
           else -> workInfo.outputData
         }
         AppLogger.log("Received workInfo with id ${data.getLDId()}")
-  
-        val ldDownload = serviceList[data.getLDId()] ?: return@observe
         
         val currentProgress = data.getLDProgress()
         AppLogger.log("Received workInfo with progress $currentProgress")
+  
+        val ldDownload = serviceList[data.getLDId()] ?: return@observe
         
         if(currentProgress> 0){
           ldDownload.updateProgress(currentProgress)
@@ -246,8 +283,5 @@ class DownloadViewModel @Inject constructor(
     }
   }
   
-  override fun onCleared() {
-    super.onCleared()
-  }
   
 }
