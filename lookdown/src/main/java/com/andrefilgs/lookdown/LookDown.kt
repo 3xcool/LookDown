@@ -173,13 +173,7 @@ class LookDown (
   }
   
   
-  /**
-   * Get all Current Running Works
-   */
-  fun getCurrentWorks(): MutableList<WorkInfo>? {
-    val workQuery = WorkQuery.Builder.fromStates(listOf(WorkInfo.State.RUNNING)).build()
-    return ldWorkManagerController.getWorkManager().getWorkInfos(workQuery).get()
-  }
+
   
   
   @InternalCoroutinesApi
@@ -250,6 +244,14 @@ class LookDown (
  
 
   //region Service
+  
+  /**
+   * Get all Current Running Works
+   */
+  fun getCurrentWorks(): MutableList<WorkInfo>? {
+    val workQuery = WorkQuery.Builder.fromStates(listOf(WorkInfo.State.RUNNING)).build()
+    return ldWorkManagerController.getWorkManager().getWorkInfos(workQuery).get()
+  }
   
   /**
    * Download File using WorkManager + Foreground Service

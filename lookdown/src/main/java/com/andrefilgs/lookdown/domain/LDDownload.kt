@@ -7,7 +7,17 @@ import java.util.*
 /**
  * @author André Filgueiras on 28/11/2020
  *
- *
+ * @param id
+ * @param url
+ * @param filename
+ * @param file
+ * @param fileSize
+ * @param downloadedBytes
+ * @param progress
+ * @param state Check LDDownloadState
+ * @param title
+ * @param feedback
+ * @param lastModified internal use
  * @param workId form WorkManager service identification
  * @param params generic mutable map for any other needed property
  */
