@@ -5,6 +5,7 @@ import androidx.lifecycle.*
 import androidx.work.Operation
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.WorkQuery
 import com.andrefilgs.fileman.Fileman
 import com.andrefilgs.lookdown.LDGlobals.LD_CHUNK_SIZE
 import com.andrefilgs.lookdown.LDGlobals.LD_CONNECT_TIMEOUT
@@ -172,6 +173,13 @@ class LookDown (
   }
   
   
+  /**
+   * Get all Current Running Works
+   */
+  fun getCurrentWorks(): MutableList<WorkInfo>? {
+    val workQuery = WorkQuery.Builder.fromStates(listOf(WorkInfo.State.RUNNING)).build()
+    return ldWorkManagerController.getWorkManager().getWorkInfos(workQuery).get()
+  }
   
   
   @InternalCoroutinesApi
@@ -300,7 +308,7 @@ class LookDown (
    */
   @ExperimentalCoroutinesApi
   @InternalCoroutinesApi
-  suspend fun downloadWithFlow(ldDownload: LDDownload, resume:Boolean=this.resume): Flow<LDDownload>? {
+  internal suspend fun downloadWithFlow(ldDownload: LDDownload, resume:Boolean=this.resume): Flow<LDDownload>? {
     try {
       return  downloadWithFlow(url = ldDownload.url!!, filename =  ldDownload.filename!!, fileExtension =  ldDownload.fileExtension ?: this.fileExtension, id = ldDownload.id,
                                title = ldDownload.title, params = ldDownload.params, lDDownload = ldDownload, resume = resume)
@@ -326,7 +334,7 @@ class LookDown (
    * @param params generic mutable map for any other needed property
    *
    */
-  suspend fun downloadWithFlow(url: String,
+  internal suspend fun downloadWithFlow(url: String,
                                filename: String,
                                fileExtension: String = this.fileExtension,
                                id: String? = null,

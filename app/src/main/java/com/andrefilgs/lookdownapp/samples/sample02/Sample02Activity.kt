@@ -53,6 +53,13 @@ class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterV
     }
     this.context = this
     subscribeObservers()
+    viewModel.getCurrentWorks(this)
+  }
+  
+  
+  @ExperimentalCoroutinesApi
+  override fun onResume() {
+    super.onResume()
   }
   
   private fun toaster(msg:String){
@@ -152,7 +159,7 @@ class Sample02Activity : AppCompatActivity(R.layout.activity_sample02), AdapterV
   
     viewModel.ldDownload.observe(this, { event ->
       event.getContentIfNotHandled().let { download ->
-        AppLogger.log("Trigger render received ldDownload with state ${download?.state}")
+        AppLogger.log("Received ldDownload with state ${download?.state}")
         download?.let {
           downAdapter.updateDownloadItemProgress(it, it.params?.get(KEY_POSITION)?.toInt())
         }
